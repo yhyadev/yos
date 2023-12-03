@@ -1,0 +1,2 @@
+BOOTLOADER_DIR = $(KERNEL_DIR)/bootloader
+BOOTLOADER_SOURCES = $(wildcard $(BOOTLOADER_DIR)/*.s)

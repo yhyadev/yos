@@ -1,29 +1,10 @@
-OUTDIR := out
-BOOTLOADER_DIR := bootloader
-KERNEL_DIR := kernel
+OUTDIR = out
 
-KERNEL_SOURCES := $(wildcard $(KERNEL_DIR)/*.c)
-BOOTLOADER_SOURCES := $(wildcard $(BOOTLOADER_DIR)/*.s)
+all: $(OUTDIR)
 
-KERNEL_OUTFILE := kernel.img
+include **/*.mk
 
-# Compiler flags
-INCLUDE_DIR := include
-CFLAGS := -isystem $(INCLUDE_DIR) -nostdlib -O2 -Wall -Wextra -Werror
-
-# Linker flags
-LINKER_SCRIPT := link.ld
-LDFLAGS := -T $(LINKER_SCRIPT)
-
-# Targets
-all: $(OUTDIR)/$(KERNEL_OUTFILE)
-
-qemu: $(OUTDIR)/$(KERNEL_OUTFILE)
-	qemu-system-aarch64 -M raspi3b -kernel $<
-
-$(OUTDIR)/$(KERNEL_OUTFILE): $(BOOTLOADER_SOURCES) $(KERNEL_SOURCES)
-	mkdir -p $(OUTDIR)
-	$(CC) $(CFLAGS) $(LDFLAGS) $? -o $@
+$(OUTDIR): $(OUTDIR)/$(YCC_OUTFILE) $(OUTDIR)/$(KERNEL_OUTFILE)
 
 clean:
 	rm -rf $(OUTDIR)
