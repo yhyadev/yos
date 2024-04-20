@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "crates/*"
+]
+
+[workspace.dependencies]
+bootloader = "0.9"
