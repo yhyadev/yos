@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 lazy_static = { workspace = true }
+linked_list_allocator = { workspace = true }
 spin = { workspace = true }
 bootloader = { workspace = true }
 volatile = { workspace = true }

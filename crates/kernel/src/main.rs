@@ -2,26 +2,29 @@
 #![no_main]
 #![feature(panic_info_message)]
 
-use yos_kernel::{halt_loop, init, print, println};
+mod panic_handler;
 
-use core::panic::PanicInfo;
+use yos_kernel::{allocator, gdt, halt_loop, interrupts, memory};
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    if let Some(message) = info.message() {
-        println!("panic occured: {}", message);
-    } else {
-        println!("panic occured with no message");
-    }
+use x86_64::VirtAddr;
 
-    halt_loop();
-}
+use bootloader::{entry_point, BootInfo};
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
-    print!("initializing the kernel.. ");
-    init();
-    println!("ok");
+entry_point!(kmain);
+
+pub fn kmain(boot_info: &'static BootInfo) -> ! {
+    gdt::init_gdt();
+    interrupts::init_idt();
+
+    let physical_memory_offset = VirtAddr::new(boot_info.physical_memory_offset);
+
+    let mut memory_mapper = unsafe { memory::init_mapper(physical_memory_offset) };
+
+    let mut frame_allocator =
+        unsafe { memory::init_bootloader_frame_allocator(&boot_info.memory_map) };
+
+    allocator::init_heap(&mut memory_mapper, &mut frame_allocator)
+        .expect("heap initialization failed");
 
     halt_loop();
 }

@@ -1,14 +1,13 @@
 #![no_std]
 #![feature(abi_x86_interrupt)]
 
+extern crate alloc;
+
+pub mod allocator;
 pub mod gdt;
 pub mod interrupts;
+pub mod memory;
 pub mod vga;
-
-pub fn init() {
-    gdt::init_gdt();
-    interrupts::init_idt();
-}
 
 pub fn halt_loop() -> ! {
     loop {
