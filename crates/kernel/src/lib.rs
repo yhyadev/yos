@@ -11,8 +11,6 @@ pub fn init() {
 }
 
 pub fn halt_loop() -> ! {
-    println!("halted");
-
     loop {
         x86_64::instructions::hlt();
     }
