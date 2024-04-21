@@ -79,8 +79,13 @@ macro_rules! println {
 }
 
 pub fn _print(args: fmt::Arguments) {
+    use x86_64::instructions::interrupts;
+
     use core::fmt::Write;
-    GLOBAL_VGA_WRITER.lock().write_fmt(args).unwrap();
+
+    interrupts::without_interrupts(|| {
+        GLOBAL_VGA_WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 pub struct VGAWriter {
