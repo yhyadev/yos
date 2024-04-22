@@ -7,6 +7,7 @@ pub mod allocator;
 pub mod gdt;
 pub mod interrupts;
 pub mod memory;
+pub mod task;
 pub mod vga;
 
 pub fn halt_loop() -> ! {
