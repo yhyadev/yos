@@ -4,9 +4,9 @@
 
 mod panic_handler;
 
-use yos_kernel::task::keyboard::ScancodeStream;
-use yos_kernel::task::Task;
-use yos_kernel::{allocator, gdt, interrupts, memory, task};
+use ykernel::task::keyboard::ScancodeStream;
+use ykernel::task::Task;
+use ykernel::{allocator, gdt, interrupts, memory, task};
 
 use bootloader::{entry_point, BootInfo};
 

@@ -190,7 +190,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "yos_kernel"
+name = "ykernel"
 version = "0.1.0"
 dependencies = [
  "bootloader",

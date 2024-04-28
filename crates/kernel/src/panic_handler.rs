@@ -1,4 +1,4 @@
-use yos_kernel::{halt_loop, println};
+use ykernel::{halt_loop, println};
 
 use core::panic::PanicInfo;
 
