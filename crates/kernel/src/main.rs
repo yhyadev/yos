@@ -5,13 +5,12 @@
 mod panic_handler;
 
 use yos_kernel::task::keyboard::ScancodeStream;
-use yos_kernel::{allocator, gdt, interrupts, memory, print, task};
+use yos_kernel::task::Task;
+use yos_kernel::{allocator, gdt, interrupts, memory, task};
 
 use bootloader::{entry_point, BootInfo};
 
 use futures_util::StreamExt;
-
-use pc_keyboard::{DecodedKey, Keyboard};
 
 use x86_64::VirtAddr;
 
@@ -37,28 +36,12 @@ pub fn kmain(boot_info: &'static BootInfo) -> ! {
 
     let mut executer = task::executer::Executer::new();
 
-    executer.spawn(task::Task::new(print_keypresses()));
+    executer.spawn(Task::new(ignore_keypresses()));
 
     executer.run();
 }
 
-pub async fn print_keypresses() {
-    let mut scancode_stream = ScancodeStream::new();
-
-    let mut keyboard = Keyboard::new(
-        pc_keyboard::ScancodeSet1::new(),
-        pc_keyboard::layouts::Us104Key,
-        pc_keyboard::HandleControl::Ignore,
-    );
-
-    while let Some(scancode) = scancode_stream.next().await {
-        if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-            if let Some(decoded_key) = keyboard.process_keyevent(key_event) {
-                match decoded_key {
-                    DecodedKey::Unicode(character) => print!("{character}"),
-                    DecodedKey::RawKey(_) => (),
-                }
-            }
-        }
-    }
+pub async fn ignore_keypresses() {
+    let mut scancodes = ScancodeStream::new();
+    while let Some(_) = scancodes.next().await {}
 }
