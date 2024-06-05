@@ -6,7 +6,7 @@ mod panic_handler;
 
 use ykernel::task::keyboard::ScancodeStream;
 use ykernel::task::Task;
-use ykernel::{allocator, gdt, interrupts, memory, task};
+use ykernel::{allocator, gdt, idt, memory, task};
 
 use bootloader::{entry_point, BootInfo};
 
@@ -18,9 +18,9 @@ entry_point!(kmain);
 
 pub fn kmain(boot_info: &'static BootInfo) -> ! {
     gdt::init_gdt();
-    interrupts::init_idt();
+    idt::init_idt();
 
-    unsafe { interrupts::PICS.lock().initialize() };
+    unsafe { idt::PICS.lock().initialize() };
 
     x86_64::instructions::interrupts::enable();
 

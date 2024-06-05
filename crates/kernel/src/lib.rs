@@ -5,7 +5,7 @@ extern crate alloc;
 
 pub mod allocator;
 pub mod gdt;
-pub mod interrupts;
+pub mod idt;
 pub mod memory;
 pub mod task;
 pub mod vga;
