@@ -70,11 +70,11 @@ macro_rules! print {
 #[macro_export]
 macro_rules! println {
     () => {
-        $crate::print!("\n");
+        $crate::print!("\n")
     };
 
     ($($arg:tt)*) => {
-        $crate::print!("{}\n", format_args!($($arg)*));
+        $crate::print!("{}\n", format_args!($($arg)*))
     };
 }
 
@@ -105,23 +105,6 @@ impl VGAWriter {
         }
     }
 
-    fn write_new_line(&mut self) {
-        if self.row == VGABuffer::HEIGHT - 1 {
-            for row in 1..VGABuffer::HEIGHT {
-                for column in 0..VGABuffer::WIDTH {
-                    self.buffer.characters[row - 1][column]
-                        .write(self.buffer.characters[row][column].read());
-                }
-            }
-
-            self.clear_row(self.row);
-        } else {
-            self.row += 1;
-        }
-
-        self.column = 0;
-    }
-
     fn clear_row(&mut self, row: usize) {
         let blank = VGAScreenCharacter {
             content: b' ',
@@ -150,10 +133,42 @@ impl VGAWriter {
         match ch as u8 {
             b'\n' => self.write_new_line(),
 
+            0x08 => self.write_backspace(),
+
             0x20..=0x7e => self.write_byte(ch as u8),
 
             // TODO: Handle non-ASCII characters
             _ => self.write_byte(0xfe),
+        }
+    }
+
+    fn write_new_line(&mut self) {
+        if self.row == VGABuffer::HEIGHT - 1 {
+            for row in 1..VGABuffer::HEIGHT {
+                for column in 0..VGABuffer::WIDTH {
+                    self.buffer.characters[row - 1][column]
+                        .write(self.buffer.characters[row][column].read());
+                }
+            }
+
+            self.clear_row(self.row);
+        } else {
+            self.row += 1;
+        }
+
+        self.column = 0;
+    }
+
+    fn write_backspace(&mut self) {
+        if self.column != 0 {
+            let blank = VGAScreenCharacter {
+                content: b' ',
+                color_code: self.color_code,
+            };
+
+            self.column -= 1;
+
+            self.buffer.characters[self.row][self.column].write(blank);
         }
     }
 }

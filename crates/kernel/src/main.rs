@@ -4,13 +4,11 @@
 
 mod panic_handler;
 
-use ykernel::task::keyboard::ScancodeStream;
+use ykernel::apps::shell;
 use ykernel::task::Task;
 use ykernel::{allocator, gdt, idt, memory, task};
 
 use bootloader::{entry_point, BootInfo};
-
-use futures_util::StreamExt;
 
 use x86_64::VirtAddr;
 
@@ -36,12 +34,7 @@ pub fn kmain(boot_info: &'static BootInfo) -> ! {
 
     let mut executer = task::executer::Executer::new();
 
-    executer.spawn(Task::new(ignore_keypresses()));
+    executer.spawn(Task::new(shell::run()));
 
     executer.run();
-}
-
-pub async fn ignore_keypresses() {
-    let mut scancodes = ScancodeStream::new();
-    while let Some(_) = scancodes.next().await {}
 }
