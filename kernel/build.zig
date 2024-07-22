@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
     target.cpu_features_sub.addFeature(@intFromEnum(Features.avx2));
     target.cpu_features_add.addFeature(@intFromEnum(Features.soft_float));
 
-    // Gett limine boot protocol utilities
+    // Get limine boot protocol utilities
     const limine = b.dependency("limine", .{});
 
     // Build the kernel itself
