@@ -76,7 +76,6 @@ fn printNewLine() void {
     state.x = 0;
     state.y += 1;
 
-    // TODO: Supporting double buffering would be better
     if (state.y >= state.height) {
         clear();
 
