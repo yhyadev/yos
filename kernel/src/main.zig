@@ -25,7 +25,6 @@ export fn _start() callconv(.C) noreturn {
 
     // Print to test if the printing works
     tty.print("-- Welcome to The Y Operating System --\n", .{});
-    tty.print("-- Welcome to The Y Operating System ---- Welcome to The Y Operating System ---- Welcome to The Y Operating System ---- Welcome to The Y Operating System ---- Welcome to The Y Operating System ---- Welcome to The Y Operating System ---- Welcome to The Y Operating System ---- Welcome to The Y Operating System --\n", .{});
 
     // The kernel should not return no matter what
     arch.hang();
