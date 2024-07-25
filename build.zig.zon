@@ -1,0 +1,15 @@
+.{
+    .name = "yos",
+    .version = "0.1.0",
+    .paths = .{"."},
+    .dependencies = .{
+        .limine = .{
+            .url = "git+https://github.com/limine-bootloader/limine-zig.git?ref=trunk#7b29b6e6f6d35052f01ed3831085a39aae131705",
+            .hash = "1220f946f839eab2ec49dca1c805ce72ac3e3ef9c47b3afcdecd1c05a7b35f66d277",
+        },
+        .limine_raw = .{
+            .url = "git+https://github.com/limine-bootloader/limine.git?ref=v7.x-binary#77d1cd580ecc221332d77c4edf4af798f31dc42f",
+            .hash = "1220fd2a3397d69c6adc9460f88bc996857e47968b6f3d9fc1fbdffa224d0983c586",
+        },
+    },
+}

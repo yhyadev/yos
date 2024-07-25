@@ -1,5 +1,2 @@
-*/.zig-cache
 .zig-cache
-*/zig-out
-limine
-yos.iso
+zig-out
