@@ -17,16 +17,19 @@ export fn _start() callconv(.C) noreturn {
         arch.hang();
     }
 
-    // Initialize the screen before printing
+    arch.instructions.cli();
+
+    // TODO: If the screen did not successfully get initialized, print to a serial port
     screen.init(framebuffer_request.response);
 
-    // Initialize the state of the tty
     tty.init();
 
-    // Print to test if the printing works
-    tty.print("-- Welcome to The Y Operating System --\n", .{});
+    tty.print("init: architecture specific features\n", .{});
 
-    // The kernel should not return no matter what
+    arch.init();
+
+    tty.print("init: all features initialized..\n", .{});
+
     arch.hang();
 }
 
@@ -38,7 +41,7 @@ pub fn panic(message: []const u8, stack_trace: ?*std.builtin.StackTrace, return_
     tty.clear();
 
     // TODO: Try to print the stack trace
-    tty.print("kernel panic occured: {s}\n", .{message});
+    tty.print("panic: {s}\n", .{message});
 
     arch.hang();
 }

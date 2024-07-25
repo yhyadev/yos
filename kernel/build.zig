@@ -40,6 +40,7 @@ pub fn build(b: *std.Build) void {
 
     switch (target.result.cpu.arch) {
         .x86_64 => kernel.setLinkerScript(b.path("src/arch/x86_64/linker.ld")),
+
         else => @panic("Target CPU is not supported"),
     }
 
