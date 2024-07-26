@@ -1,14 +1,14 @@
 const GlobalDescriptorTable = @import("gdt.zig").GlobalDescriptorTable;
 const InterruptDescriptorTable = @import("idt.zig").InterruptDescriptorTable;
 
-/// Disable interrupts
-pub inline fn cli() void {
-    asm volatile ("cli");
-}
-
 /// Enable interrupts
 pub inline fn sti() void {
     asm volatile ("sti");
+}
+
+/// Disable interrupts
+pub inline fn cli() void {
+    asm volatile ("cli");
 }
 
 /// Wait for another interrupt until the next iteration, this usually used to put the CPU to sleep
@@ -17,8 +17,25 @@ pub inline fn hlt() void {
 }
 
 /// Invoke breakpoint interrupt
-pub inline fn int3() void {
+pub inline fn int() void {
     asm volatile ("int $3");
+}
+
+/// Get a byte from a serial port
+pub inline fn inb(port: u16) u8 {
+    return asm volatile ("inb %[port], %[ret]"
+        : [ret] "={al}" (-> u8),
+        : [port] "{eax}" (port),
+    );
+}
+
+/// Send a byte to serial port
+pub inline fn outb(port: u16, byte: u8) void {
+    asm volatile ("outb %[byte], %[port]"
+        :
+        : [port] "{eax}" (port),
+          [byte] "{al}" (byte),
+    );
 }
 
 /// Get the code segment
@@ -30,9 +47,9 @@ pub inline fn cs() u16 {
 
 /// Load the GDT
 pub inline fn lgdt(gdtr: *const GlobalDescriptorTable.Register) void {
-    asm volatile ("lgdt (%[ptr])"
+    asm volatile ("lgdt (%[gdtr])"
         :
-        : [ptr] "{rax}" (@intFromPtr(gdtr)),
+        : [gdtr] "{rax}" (gdtr),
     );
 }
 
@@ -55,16 +72,16 @@ pub noinline fn reloadSegments() void {
 
 /// Load the IDT
 pub inline fn lidt(idtr: *const InterruptDescriptorTable.Register) void {
-    asm volatile ("lidt (%[ptr])"
+    asm volatile ("lidt (%[idtr])"
         :
-        : [ptr] "{rax}" (idtr),
+        : [idtr] "{rax}" (idtr),
     );
 }
 
 /// Load the Task Register (Which is a segment selector of the TSS in the GDT)
 pub inline fn ltr(tr: u16) void {
-    asm volatile ("ltr %[reg]"
+    asm volatile ("ltr %[tr]"
         :
-        : [reg] "{rax}" (tr),
+        : [tr] "{rax}" (tr),
     );
 }

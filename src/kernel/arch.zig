@@ -7,16 +7,16 @@ const system = switch (target_arch) {
     else => @compileError("Target CPU is not supported"),
 };
 
-pub const instructions = system.instructions;
+pub const cpu = system.cpu;
 
 pub fn init() void {
     system.init();
 }
 
 pub inline fn hang() noreturn {
-    instructions.cli();
+    cpu.cli();
 
     while (true) {
-        instructions.hlt();
+        cpu.hlt();
     }
 }

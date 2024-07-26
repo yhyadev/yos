@@ -1,4 +1,4 @@
-const instructions = @import("instructions.zig");
+const cpu = @import("cpu.zig");
 
 pub var backup_kernel_stack: [16 * 4 * 1024]u8 = undefined;
 
@@ -74,9 +74,9 @@ pub const GlobalDescriptorTable = extern struct {
     }
 
     pub fn load(self: *GlobalDescriptorTable) void {
-        instructions.lgdt(&self.register());
-        instructions.reloadSegments();
-        instructions.ltr(0x18);
+        cpu.lgdt(&self.register());
+        cpu.reloadSegments();
+        cpu.ltr(0x18);
     }
 };
 

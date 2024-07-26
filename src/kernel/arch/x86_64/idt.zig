@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const instructions = @import("instructions.zig");
+const cpu = @import("cpu.zig");
 const tty = @import("../../tty.zig");
 
 pub var idt: InterruptDescriptorTable = .{};
@@ -40,7 +40,7 @@ pub const InterruptDescriptorTable = extern struct {
             self.pointer_low = @truncate(pointer);
             self.pointer_high = @truncate(pointer >> 16);
 
-            self.segment_selector = instructions.cs();
+            self.segment_selector = cpu.cs();
 
             self.present = 1;
 
@@ -61,7 +61,7 @@ pub const InterruptDescriptorTable = extern struct {
     }
 
     pub fn load(self: *InterruptDescriptorTable) void {
-        instructions.lidt(&self.register());
+        cpu.lidt(&self.register());
     }
 };
 
