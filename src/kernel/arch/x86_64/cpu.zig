@@ -17,7 +17,7 @@ pub inline fn hlt() void {
 }
 
 /// Invoke breakpoint interrupt
-pub inline fn int() void {
+pub inline fn int3() void {
     asm volatile ("int $3");
 }
 
