@@ -49,15 +49,15 @@ pub const GlobalDescriptorTable = extern struct {
     };
 
     pub fn addKernelCodeSegment(self: *GlobalDescriptorTable) void {
-        self.entries[1] = GlobalDescriptorTable.Entry.init(0, 0xFFFFF, 0x9A, 0xA);
+        self.entries[1] = Entry.init(0, 0xFFFFF, 0x9A, 0xA);
     }
 
     pub fn addKernelDataSegment(self: *GlobalDescriptorTable) void {
-        self.entries[2] = GlobalDescriptorTable.Entry.init(0, 0xFFFFF, 0x92, 0xC);
+        self.entries[2] = Entry.init(0, 0xFFFFF, 0x92, 0xC);
     }
 
     pub fn addTaskStateSegment(self: *GlobalDescriptorTable) void {
-        self.entries[3] = @bitCast(((@sizeOf(TaskStateSegment.Entry) - 1) & 0xffff) | ((@intFromPtr(&tss) & 0xffffff) << 16) | (0b1001 << 40) | (1 << 47) | (((@intFromPtr(&tss) >> 24) & 0xff) << 56));
+        self.entries[3] = @bitCast(((@sizeOf(TaskStateSegment.Entry) - 1) & 0xFFFF) | ((@intFromPtr(&tss) & 0xFFFFFF) << 16) | (0b1001 << 40) | (1 << 47) | (((@intFromPtr(&tss) >> 24) & 0xFF) << 56));
         self.entries[4] = @bitCast(@intFromPtr(&tss) >> 32);
     }
 
