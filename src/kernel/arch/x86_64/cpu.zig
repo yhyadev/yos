@@ -21,7 +21,7 @@ pub inline fn int3() void {
     asm volatile ("int $3");
 }
 
-/// Get a byte from a serial port
+/// Get a byte from a io port
 pub inline fn inb(port: u16) u8 {
     return asm volatile ("inb %[port], %[ret]"
         : [ret] "={al}" (-> u8),
@@ -29,7 +29,7 @@ pub inline fn inb(port: u16) u8 {
     );
 }
 
-/// Send a byte to serial port
+/// Send a byte to io port
 pub inline fn outb(port: u16, byte: u8) void {
     asm volatile ("outb %[byte], %[port]"
         :
