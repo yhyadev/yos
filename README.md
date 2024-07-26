@@ -1,3 +1,8 @@
 # The Y Operating System
 
-An experimental operating system made for researching and learning only
+An operating system for me (Y stands for Yhya)
+
+## More details
+
+I currently use Void Linux, I hate it, so I am trying to make my own operating system from scratch
+How hard can it be? weeks? months? years? centuries? only Allah knows, but I will just try
