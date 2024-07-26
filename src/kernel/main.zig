@@ -17,7 +17,6 @@ export fn _start() callconv(.C) noreturn {
 
     arch.cpu.cli();
 
-    // TODO: If the screen did not successfully get initialized, print to a serial port
     screen.init(framebuffer_request.response);
 
     tty.init();
