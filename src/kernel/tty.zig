@@ -43,9 +43,10 @@ pub fn clear() void {
 }
 
 pub const Writer = std.io.Writer(void, error{}, printImpl);
+pub const writer = Writer{ .context = {} };
 
 pub fn print(comptime format: []const u8, arguments: anytype) void {
-    std.fmt.format(Writer{ .context = {} }, format, arguments) catch arch.hang();
+    std.fmt.format(writer, format, arguments) catch arch.hang();
 }
 
 fn printImpl(ctx: void, bytes: []const u8) !usize {
