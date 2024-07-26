@@ -32,10 +32,6 @@ export fn _start() noreturn {
 
     tty.print("init: architecture specific features\n", .{});
 
-    {
-        @panic("hey");
-    }
-
     arch.init();
 
     tty.print("init: all features initialized..\n", .{});
