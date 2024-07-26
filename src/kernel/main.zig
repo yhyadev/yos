@@ -9,7 +9,7 @@ pub export var base_revision: limine.BaseRevision = .{ .revision = 2 };
 
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
-export fn _start() callconv(.C) noreturn {
+export fn _start() noreturn {
     // Check if limine understands our base revision
     if (!base_revision.is_supported()) {
         arch.hang();
