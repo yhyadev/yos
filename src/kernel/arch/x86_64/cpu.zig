@@ -21,7 +21,7 @@ pub inline fn int3() void {
     asm volatile ("int $3");
 }
 
-/// Get a byte from a io port
+/// Get a byte from an io port
 pub inline fn inb(port: u16) u8 {
     return asm volatile ("inb %[port], %[ret]"
         : [ret] "={al}" (-> u8),
