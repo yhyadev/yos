@@ -2,6 +2,7 @@ const std = @import("std");
 
 const cpu = @import("cpu.zig");
 const pic = @import("pic.zig");
+const ps2 = @import("../../ps2.zig");
 const tty = @import("../../tty.zig");
 
 pub var idt: InterruptDescriptorTable = .{};
@@ -193,5 +194,9 @@ fn handleTimer(_: *InterruptStackFrame) callconv(.Interrupt) void {
 }
 
 fn handleKeyboard(_: *InterruptStackFrame) callconv(.Interrupt) void {
-    pic.notifyEndOfInterrupt(pic.keyboard_interrupt);
+    defer pic.notifyEndOfInterrupt(pic.keyboard_interrupt);
+
+    const scancode = cpu.io.inb(0x60);
+
+    ps2.scancodes.append(scancode);
 }
