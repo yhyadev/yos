@@ -1,3 +1,6 @@
+pub var scancodes = Stream(u8, 256){ .sink = true };
+pub var sink = Stream(u8, 0){ .sink = true };
+
 pub fn Stream(comptime V: type, comptime capacity: usize) type {
     return struct {
         items: [capacity]V = undefined,
