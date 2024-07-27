@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const cpu = @import("cpu.zig");
+const pic = @import("pic.zig");
 const tty = @import("../../tty.zig");
 
 pub var idt: InterruptDescriptorTable = .{};
@@ -40,7 +41,7 @@ pub const InterruptDescriptorTable = extern struct {
             self.pointer_low = @truncate(pointer);
             self.pointer_high = @truncate(pointer >> 16);
 
-            self.segment_selector = cpu.cs();
+            self.segment_selector = cpu.segments.cs();
 
             self.present = 1;
 
@@ -61,7 +62,7 @@ pub const InterruptDescriptorTable = extern struct {
     }
 
     pub fn load(self: *InterruptDescriptorTable) void {
-        cpu.lidt(&self.register());
+        cpu.segments.lidt(&self.register());
     }
 };
 
@@ -96,6 +97,12 @@ pub fn init() void {
     idt.entries[28].setHandler(@intFromPtr(&handleHypervisorInjectionException)).setTrapGate();
     idt.entries[29].setHandler(@intFromPtr(&handleVMMCommunicationException)).setTrapGate();
     idt.entries[30].setHandler(@intFromPtr(&handleSecurityException)).setTrapGate();
+
+    idt.entries[pic.timer_interrupt].setHandler(@intFromPtr(&handleTimer)).setInterruptGate();
+    pic.clear_mask(pic.timer_interrupt);
+
+    idt.entries[pic.keyboard_interrupt].setHandler(@intFromPtr(&handleKeyboard)).setInterruptGate();
+    pic.clear_mask(pic.keyboard_interrupt);
 
     idt.load();
 }
@@ -179,4 +186,12 @@ fn handleVMMCommunicationException(_: *InterruptStackFrame, code: u64) callconv(
 
 fn handleSecurityException(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
     std.debug.panic("security exception: {}\n", .{code});
+}
+
+fn handleTimer(_: *InterruptStackFrame) callconv(.Interrupt) void {
+    pic.notifyEndOfInterrupt(pic.timer_interrupt);
+}
+
+fn handleKeyboard(_: *InterruptStackFrame) callconv(.Interrupt) void {
+    pic.notifyEndOfInterrupt(pic.keyboard_interrupt);
 }

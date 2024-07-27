@@ -74,9 +74,9 @@ pub const GlobalDescriptorTable = extern struct {
     }
 
     pub fn load(self: *GlobalDescriptorTable) void {
-        cpu.lgdt(&self.register());
-        cpu.reloadSegments();
-        cpu.ltr(0x18);
+        cpu.segments.lgdt(&self.register());
+        cpu.segments.reloadSegments();
+        cpu.segments.ltr(0x18);
     }
 };
 

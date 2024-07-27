@@ -10,21 +10,20 @@ pub export var base_revision: limine.BaseRevision = .{ .revision = 2 };
 pub export var framebuffer_request: limine.FramebufferRequest = .{};
 
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    // Clear anything on the screen before trying to print the panic, this is usually because the user may be in a gui and not the tty
-    tty.clear();
+    arch.cpu.interrupts.disable();
 
-    tty.print("panic: {s}\n", .{message});
+    tty.print("\npanic: {s}\n", .{message});
 
     arch.hang();
 }
 
 export fn _start() noreturn {
+    arch.cpu.interrupts.disable();
+
     // Check if limine understands our base revision
     if (!base_revision.is_supported()) {
         arch.hang();
     }
-
-    arch.cpu.cli();
 
     screen.init(framebuffer_request.response);
 
@@ -36,7 +35,7 @@ export fn _start() noreturn {
 
     tty.print("init: all features initialized..\n", .{});
 
-    arch.cpu.sti();
+    arch.cpu.interrupts.enable();
 
     arch.hang();
 }

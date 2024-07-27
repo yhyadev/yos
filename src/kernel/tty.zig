@@ -32,6 +32,10 @@ pub fn init() void {
 }
 
 pub fn clear() void {
+    const interrupts_was_enabled = arch.cpu.interrupts.enabled();
+    arch.cpu.interrupts.disable();
+    defer if (interrupts_was_enabled) arch.cpu.interrupts.enable();
+
     for (0..screen.framebuffer.height) |y| {
         for (0..screen.framebuffer.width) |x| {
             screen.putPixel(x, y, state.background);
@@ -46,6 +50,10 @@ pub const Writer = std.io.Writer(void, error{}, printImpl);
 pub const writer = Writer{ .context = {} };
 
 pub fn print(comptime format: []const u8, arguments: anytype) void {
+    const interrupts_was_enabled = arch.cpu.interrupts.enabled();
+    arch.cpu.interrupts.disable();
+    defer if (interrupts_was_enabled) arch.cpu.interrupts.enable();
+
     std.fmt.format(writer, format, arguments) catch arch.hang();
 }
 

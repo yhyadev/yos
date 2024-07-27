@@ -4,6 +4,7 @@ const target_arch = builtin.cpu.arch;
 
 const system = switch (target_arch) {
     .x86_64 => @import("arch/x86_64.zig"),
+
     else => @compileError("Target CPU is not supported"),
 };
 
@@ -14,9 +15,7 @@ pub fn init() void {
 }
 
 pub inline fn hang() noreturn {
-    cpu.cli();
-
     while (true) {
-        cpu.hlt();
+        cpu.interrupts.hlt();
     }
 }
