@@ -1,7 +1,10 @@
 const std = @import("std");
 const limine = @import("limine");
 
+pub const os = @import("os.zig");
+
 const arch = @import("arch.zig");
+const memory = @import("memory.zig");
 const screen = @import("screen.zig");
 const tty = @import("tty.zig");
 
@@ -27,11 +30,13 @@ export fn _start() noreturn {
 
     tty.init();
 
-    tty.print("init: architecture specific features\n", .{});
+    tty.print("init: initialize memory allocation feature\n", .{});
+    memory.init();
 
+    tty.print("init: initialize architecture specific features\n", .{});
     arch.init();
 
-    tty.print("init: all features initialized..\n", .{});
+    tty.print("init: all features are initialized\n", .{});
 
     arch.cpu.interrupts.enable();
 

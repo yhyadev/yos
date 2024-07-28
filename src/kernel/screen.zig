@@ -8,13 +8,15 @@ pub var framebuffers: []*limine.Framebuffer = undefined;
 pub var framebuffer: *limine.Framebuffer = undefined;
 
 pub fn init() void {
-    const framebuffer_response = framebuffer_request.response;
+    const maybe_framebuffer_response = framebuffer_request.response;
 
-    if (framebuffer_response == null or framebuffer_response.?.framebuffers().len == 0) {
+    if (maybe_framebuffer_response == null or maybe_framebuffer_response.?.framebuffers().len == 0) {
         arch.hang();
     }
 
-    framebuffers = framebuffer_response.?.framebuffers();
+    const framebuffer_response = maybe_framebuffer_response.?;
+
+    framebuffers = framebuffer_response.framebuffers();
     framebuffer = framebuffers[0];
 }
 
