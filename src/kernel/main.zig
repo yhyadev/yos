@@ -5,9 +5,7 @@ const arch = @import("arch.zig");
 const screen = @import("screen.zig");
 const tty = @import("tty.zig");
 
-pub export var base_revision: limine.BaseRevision = .{ .revision = 2 };
-
-pub export var framebuffer_request: limine.FramebufferRequest = .{};
+export var base_revision: limine.BaseRevision = .{ .revision = 2 };
 
 pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
     arch.cpu.interrupts.disable();
@@ -25,7 +23,7 @@ export fn _start() noreturn {
         arch.hang();
     }
 
-    screen.init(framebuffer_request.response);
+    screen.init();
 
     tty.init();
 

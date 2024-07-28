@@ -2,10 +2,14 @@ const limine = @import("limine");
 
 const arch = @import("arch.zig");
 
+export var framebuffer_request: limine.FramebufferRequest = .{};
+
 pub var framebuffers: []*limine.Framebuffer = undefined;
 pub var framebuffer: *limine.Framebuffer = undefined;
 
-pub fn init(framebuffer_response: ?*limine.FramebufferResponse) void {
+pub fn init() void {
+    const framebuffer_response = framebuffer_request.response;
+
     if (framebuffer_response == null or framebuffer_response.?.framebuffers().len == 0) {
         arch.hang();
     }
