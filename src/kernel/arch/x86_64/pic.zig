@@ -74,6 +74,9 @@ pub fn init() void {
 
     cpu.io.outb(master_data_port, master_data_mask);
     cpu.io.outb(slave_data_port, slave_data_mask);
+
+    clearMask(timer_interrupt);
+    clearMask(keyboard_interrupt);
 }
 
 pub fn disable() void {
@@ -86,7 +89,7 @@ pub fn notifyEndOfInterrupt(irq: u8) void {
     cpu.io.outb(master_command_port, eoi);
 }
 
-pub fn set_mask(irq: u8) void {
+pub fn setMask(irq: u8) void {
     var port: u16 = undefined;
     var modified_irq: u3 = undefined;
 
@@ -101,7 +104,7 @@ pub fn set_mask(irq: u8) void {
     cpu.io.outb(port, cpu.io.inb(port) | (@as(u8, 1) << modified_irq));
 }
 
-pub fn clear_mask(irq: u8) void {
+pub fn clearMask(irq: u8) void {
     var port: u16 = undefined;
     var modified_irq: u3 = undefined;
 

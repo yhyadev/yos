@@ -100,10 +100,7 @@ pub fn init() void {
     idt.entries[30].setHandler(@intFromPtr(&handleSecurityException)).setTrapGate();
 
     idt.entries[pic.timer_interrupt].setHandler(@intFromPtr(&handleTimer)).setInterruptGate();
-    pic.clear_mask(pic.timer_interrupt);
-
     idt.entries[pic.keyboard_interrupt].setHandler(@intFromPtr(&handleKeyboard)).setInterruptGate();
-    pic.clear_mask(pic.keyboard_interrupt);
 
     idt.load();
 }
