@@ -1,6 +1,10 @@
 const std = @import("std");
 const limine = @import("limine");
 
+const arch = @import("arch.zig");
+
+const SpinLock = @import("locks/SpinLock.zig");
+
 export var memory_map_request: limine.MemoryMapRequest = .{};
 export var hhdm_request: limine.HhdmRequest = .{};
 
@@ -12,6 +16,8 @@ const min_page_size = 4096;
 
 var hhdm_offset: u64 = undefined;
 
+var mutex: SpinLock = .{};
+
 pub const PageAllocator = struct {
     pub const vtable: std.mem.Allocator.VTable = .{
         .alloc = alloc,
@@ -21,6 +27,9 @@ pub const PageAllocator = struct {
 
     fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
         std.debug.assert(len > 0);
+
+        mutex.lock();
+        defer mutex.unlock();
 
         const required_page_count = std.math.divCeil(usize, len, min_page_size) catch unreachable;
 
@@ -53,6 +62,9 @@ pub const PageAllocator = struct {
 
     fn free(_: *anyopaque, buf: []u8, _: u8, _: usize) void {
         std.debug.assert(buf.len > 0);
+
+        mutex.lock();
+        defer mutex.unlock();
 
         for (page_bitmap, 0..) |page_bit, i| {
             if (page_bit == 1 and memory_region.ptr + i * min_page_size == buf.ptr) {

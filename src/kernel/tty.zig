@@ -3,6 +3,8 @@ const std = @import("std");
 const arch = @import("arch.zig");
 const screen = @import("screen.zig");
 
+const SpinLock = @import("locks/SpinLock.zig");
+
 pub const font: Font = .{
     .data = @embedFile("assets/font.bin"),
     .text_width = 8,
@@ -14,6 +16,8 @@ pub const Font = struct {
     text_width: usize,
     text_height: usize,
 };
+
+var mutex: SpinLock = .{};
 
 pub var state: State = .{};
 
@@ -32,9 +36,8 @@ pub fn init() void {
 }
 
 pub fn clear() void {
-    const interrupts_was_enabled = arch.cpu.interrupts.enabled();
-    arch.cpu.interrupts.disable();
-    defer if (interrupts_was_enabled) arch.cpu.interrupts.enable();
+    mutex.lock();
+    defer mutex.unlock();
 
     for (0..screen.framebuffer.height) |y| {
         for (0..screen.framebuffer.width) |x| {
@@ -50,9 +53,8 @@ pub const Writer = std.io.Writer(void, error{}, printImpl);
 pub const writer = Writer{ .context = {} };
 
 pub fn print(comptime format: []const u8, arguments: anytype) void {
-    const interrupts_was_enabled = arch.cpu.interrupts.enabled();
-    arch.cpu.interrupts.disable();
-    defer if (interrupts_was_enabled) arch.cpu.interrupts.enable();
+    mutex.lock();
+    defer mutex.unlock();
 
     std.fmt.format(writer, format, arguments) catch arch.hang();
 }
@@ -86,7 +88,9 @@ fn printNewLine() void {
     state.y += 1;
 
     if (state.y >= state.height) {
+        mutex.unlock();
         clear();
+        mutex.lock();
 
         state.y = 0;
     }
