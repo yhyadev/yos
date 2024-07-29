@@ -113,7 +113,9 @@ fn printFontBytes(font_bytes: []const u8) void {
             const font_bit = getFontBit(font.text_width - 1 - dx, dy, font_bytes);
 
             if (font_bit) {
-                screen.get(x + dx, y + dy).* = screen.Color.white;
+                screen.get(x + dx, y + dy).* = state.foreground;
+            } else {
+                screen.get(x + dx, y + dy).* = state.background;
             }
         }
     }
