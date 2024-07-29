@@ -39,6 +39,9 @@ fn wait() void {
 }
 
 pub fn init() void {
+    clearMask(timer_interrupt);
+    clearMask(keyboard_interrupt);
+
     const master_data_mask = cpu.io.inb(master_data_port);
     const slave_data_mask = cpu.io.inb(slave_data_port);
 
@@ -74,9 +77,6 @@ pub fn init() void {
 
     cpu.io.outb(master_data_port, master_data_mask);
     cpu.io.outb(slave_data_port, slave_data_mask);
-
-    clearMask(timer_interrupt);
-    clearMask(keyboard_interrupt);
 }
 
 pub fn disable() void {
