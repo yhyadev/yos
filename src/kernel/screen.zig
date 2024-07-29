@@ -33,8 +33,8 @@ pub const Color = packed struct(u32) {
     pub const green: Color = .{ .r = 0, .g = 255, .b = 0, .a = 255 };
 };
 
-pub fn putPixel(x: u64, y: u64, color: Color) void {
+pub fn get(x: u64, y: u64) *Color {
     const pixel_offset = x * 4 + y * framebuffer.pitch;
 
-    @as(*Color, @ptrCast(@alignCast(framebuffer.address + pixel_offset))).* = color;
+    return @as(*Color, @ptrCast(@alignCast(framebuffer.address + pixel_offset)));
 }

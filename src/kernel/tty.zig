@@ -41,7 +41,7 @@ pub fn clear() void {
 
     for (0..screen.framebuffer.height) |y| {
         for (0..screen.framebuffer.width) |x| {
-            screen.putPixel(x, y, state.background);
+            screen.get(x, y).* = state.background;
         }
     }
 
@@ -113,7 +113,7 @@ fn printFontBytes(font_bytes: []const u8) void {
             const font_bit = getFontBit(font.text_width - 1 - dx, dy, font_bytes);
 
             if (font_bit) {
-                screen.putPixel(x + dx, y + dy, screen.Color.white);
+                screen.get(x + dx, y + dy).* = screen.Color.white;
             }
         }
     }
