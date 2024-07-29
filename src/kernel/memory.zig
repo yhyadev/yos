@@ -98,7 +98,7 @@ pub fn init() void {
     const required_page_count = std.math.divCeil(usize, page_count, min_page_size) catch unreachable;
 
     if (memory_region.len < min_page_size or memory_region.len < required_page_count * min_page_size) {
-        @panic("minimum required usable memory exceeded");
+        @panic("minimum required usable memory exceeded the actual usable memory");
     }
 
     page_bitmap = memory_region[0..page_count];
