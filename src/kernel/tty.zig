@@ -33,6 +33,8 @@ pub const State = struct {
 pub fn init() void {
     state.width = @divFloor(screen.framebuffer.width, font.text_width);
     state.height = @divFloor(screen.framebuffer.height, font.text_height);
+
+    clear();
 }
 
 pub fn clear() void {
@@ -72,7 +74,7 @@ fn printImpl(ctx: void, bytes: []const u8) !usize {
 fn printByte(byte: u8) void {
     if (!std.ascii.isAscii(byte)) {
         printFontBytes(getFontBytes(font.data.len - 2 * 16));
-    } else if (byte != ' ' and byte != '\n') {
+    } else if (byte != '\n') {
         printFontBytes(getFontBytes(@mod(byte * font.text_height, font.data.len)));
     }
 
