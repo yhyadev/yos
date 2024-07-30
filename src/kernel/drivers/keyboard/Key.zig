@@ -98,6 +98,7 @@ pub const Code = enum {
     numpad_multiply,
     numpad_lock,
     numpad_period,
+    numpad_enter,
     numpad_0,
     numpad_1,
     numpad_2,
@@ -153,15 +154,11 @@ pub const Code = enum {
     volume_up,
     calculator,
     www_home,
-    power_on_test_ok,
-    /// Sent by the keyboard when too many keys are pressed
-    too_many_keys,
+
+    unknown,
 };
 
-const State = enum {
+pub const State = enum {
     released,
     pressed,
-    /// Key was pressed and then released as an atomic action. Or it's like a
-    /// PowerOnSelfTest event which doesn't have an 'Released' or a 'Pressed'.
-    single_shot,
 };

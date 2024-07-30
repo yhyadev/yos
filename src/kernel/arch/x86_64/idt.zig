@@ -191,6 +191,6 @@ fn handleTimer(_: *InterruptStackFrame) callconv(.Interrupt) void {
 }
 
 fn handleKeyboard(_: *InterruptStackFrame) callconv(.Interrupt) void {
-    ps2.appendToStream();
+    ps2.appendScancodeToStream();
     pic.notifyEndOfInterrupt(pic.keyboard_interrupt);
 }
