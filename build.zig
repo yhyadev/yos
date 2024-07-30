@@ -51,15 +51,17 @@ pub fn build(b: *std.Build) !void {
     {
         const image_name = "yos";
 
-        try std.fs.deleteTreeAbsolute(b.getInstallPath(.prefix, "iso_root/"));
+        std.fs.makeDirAbsolute(b.getInstallPath(.prefix, ".")) catch {};
 
+        std.fs.deleteTreeAbsolute(b.getInstallPath(.prefix, "iso_root/")) catch {};
         try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/"));
+
         try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/boot/"));
         try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/boot/limine/"));
         try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/EFI/"));
         try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/EFI/BOOT/"));
 
-        try std.fs.deleteTreeAbsolute(b.getInstallPath(.prefix, "iso/"));
+        std.fs.deleteTreeAbsolute(b.getInstallPath(.prefix, "iso/")) catch {};
         try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso/"));
 
         const copy_kernel = b.addInstallArtifact(kernel, .{ .dest_dir = .{ .override = .{ .custom = "iso_root/boot/" } } });
