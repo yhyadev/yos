@@ -1,23 +1,21 @@
 const std = @import("std");
 const limine = @import("limine");
 
+// Bring Your Own OS feature
 pub const os = @import("os.zig");
 
+// It is important to be public for @panic builtin and std.debug.print to call it
+pub const panic = crash.panic;
+
 const arch = @import("arch.zig");
+const crash = @import("crash.zig");
 const memory = @import("memory.zig");
 const screen = @import("screen.zig");
 const tty = @import("tty.zig");
 
 export var base_revision: limine.BaseRevision = .{ .revision = 2 };
 
-pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-    arch.cpu.interrupts.disable();
-
-    tty.print("\npanic: {s}\n", .{message});
-
-    arch.hang();
-}
-
+/// The entry point that limine bootloader loads
 export fn _start() noreturn {
     arch.cpu.interrupts.disable();
 
