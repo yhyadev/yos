@@ -6,7 +6,7 @@ const screen = @import("screen.zig");
 const SpinLock = @import("locks/SpinLock.zig");
 
 pub const font: Font = .{
-    .data = @embedFile("assets/font.bin"),
+    .data = @embedFile("assets/fonts/vga8x16.bin"),
     .text_width = 8,
     .text_height = 16,
 };
