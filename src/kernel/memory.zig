@@ -9,6 +9,8 @@ export var memory_map_request: limine.MemoryMapRequest = .{};
 export var hhdm_request: limine.HhdmRequest = .{};
 
 var memory_region: []u8 = undefined;
+var memory_region_allocator: std.heap.FixedBufferAllocator = undefined;
+
 var hhdm_offset: u64 = undefined;
 
 pub const PageAllocator = struct {
@@ -16,7 +18,8 @@ pub const PageAllocator = struct {
 
     const min_page_size = 4096;
 
-    var page_bitmap: []u8 = undefined;
+    var page_bitmap: std.DynamicBitSetUnmanaged = .{};
+
     var page_count: u64 = 0;
 
     var mutex: SpinLock = .{};
@@ -30,18 +33,12 @@ pub const PageAllocator = struct {
     pub fn init() void {
         page_count = std.math.divCeil(usize, memory_region.len, min_page_size) catch unreachable;
 
-        const required_page_count = std.math.divCeil(usize, page_count, min_page_size) catch unreachable;
+        const required_page_count = std.math.divCeil(usize, page_count, min_page_size * @sizeOf(std.DynamicBitSetUnmanaged.MaskInt)) catch unreachable;
 
-        if (memory_region.len < min_page_size or memory_region.len < required_page_count * min_page_size) {
-            @panic("minimum required usable memory exceeded the actual usable memory");
-        }
-
-        page_bitmap = memory_region[0..page_count];
-
-        @memset(page_bitmap, 0);
+        page_bitmap = std.DynamicBitSetUnmanaged.initEmpty(memory_region_allocator.allocator(), page_count) catch @panic("out of memory");
 
         for (0..required_page_count) |i| {
-            page_bitmap[i] = 1;
+            page_bitmap.set(i);
         }
 
         initialized = true;
@@ -62,13 +59,13 @@ pub const PageAllocator = struct {
         var first_available_page: usize = 0;
         var available_page_count: usize = 0;
 
-        for (page_bitmap, 0..) |page_bit, i| {
-            if (page_bit == 0) {
+        for (0..page_count - 1) |i| {
+            if (!page_bitmap.isSet(i)) {
                 if (available_page_count == 0) first_available_page = i;
 
                 if (required_page_count == 1 or available_page_count == required_page_count - 1) {
                     for (first_available_page..i + 1) |j| {
-                        page_bitmap[j] = 1;
+                        page_bitmap.set(j);
                     }
 
                     return memory_region[first_available_page * min_page_size .. (i + 1) * min_page_size].ptr;
@@ -94,10 +91,10 @@ pub const PageAllocator = struct {
 
         const required_page_count = std.math.divCeil(usize, buf.len, min_page_size) catch unreachable;
 
-        for (0..page_bitmap.len) |i| {
+        for (0..page_count) |i| {
             if ((memory_region.ptr + (i * min_page_size)) == buf.ptr) {
                 for (i..i + required_page_count) |j| {
-                    page_bitmap[j] = 0;
+                    page_bitmap.toggle(j);
                 }
 
                 break;
@@ -136,4 +133,5 @@ pub fn init() void {
     }
 
     memory_region = best_memory_region.?;
+    memory_region_allocator = std.heap.FixedBufferAllocator.init(memory_region);
 }
