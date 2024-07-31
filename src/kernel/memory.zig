@@ -9,21 +9,43 @@ export var memory_map_request: limine.MemoryMapRequest = .{};
 export var hhdm_request: limine.HhdmRequest = .{};
 
 var memory_region: []u8 = undefined;
-var page_bitmap: []u8 = undefined;
-
-var page_count: u64 = 0;
-const min_page_size = 4096;
-
 var hhdm_offset: u64 = undefined;
 
-var mutex: SpinLock = .{};
-
 pub const PageAllocator = struct {
+    var initialized = false;
+
+    const min_page_size = 4096;
+
+    var page_bitmap: []u8 = undefined;
+    var page_count: u64 = 0;
+
+    var mutex: SpinLock = .{};
+
     pub const vtable: std.mem.Allocator.VTable = .{
         .alloc = alloc,
         .resize = std.mem.Allocator.noResize,
         .free = free,
     };
+
+    pub fn init() void {
+        page_count = std.math.divCeil(usize, memory_region.len, min_page_size) catch unreachable;
+
+        const required_page_count = std.math.divCeil(usize, page_count, min_page_size) catch unreachable;
+
+        if (memory_region.len < min_page_size or memory_region.len < required_page_count * min_page_size) {
+            @panic("minimum required usable memory exceeded the actual usable memory");
+        }
+
+        page_bitmap = memory_region[0..page_count];
+
+        @memset(page_bitmap, 0);
+
+        for (0..required_page_count) |i| {
+            page_bitmap[i] = 1;
+        }
+
+        initialized = true;
+    }
 
     fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
         std.debug.assert(len > 0);
@@ -31,9 +53,11 @@ pub const PageAllocator = struct {
         mutex.lock();
         defer mutex.unlock();
 
+        if (!initialized) PageAllocator.init();
+
         const required_page_count = std.math.divCeil(usize, len, min_page_size) catch unreachable;
 
-        if (required_page_count < page_count) return null;
+        if (required_page_count > page_count) return null;
 
         var first_available_page: usize = 0;
         var available_page_count: usize = 0;
@@ -65,6 +89,8 @@ pub const PageAllocator = struct {
 
         mutex.lock();
         defer mutex.unlock();
+
+        if (!initialized) @panic("free is called while the page allocator is not initialized");
 
         for (page_bitmap, 0..) |page_bit, i| {
             if (page_bit == 1 and memory_region.ptr + i * min_page_size == buf.ptr) {
@@ -104,20 +130,4 @@ pub fn init() void {
     }
 
     memory_region = best_memory_region.?;
-
-    page_count = std.math.divCeil(usize, memory_region.len, min_page_size) catch unreachable;
-
-    const required_page_count = std.math.divCeil(usize, page_count, min_page_size) catch unreachable;
-
-    if (memory_region.len < min_page_size or memory_region.len < required_page_count * min_page_size) {
-        @panic("minimum required usable memory exceeded the actual usable memory");
-    }
-
-    page_bitmap = memory_region[0..page_count];
-
-    @memset(page_bitmap, 0);
-
-    for (0..required_page_count) |i| {
-        page_bitmap[i] = 1;
-    }
 }
