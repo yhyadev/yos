@@ -9,7 +9,7 @@ const command_port = 0x64;
 const data_port = 0x60;
 
 pub fn appendScancodeToStream() void {
-    const scancode = arch.cpu.io.inb(0x60);
+    const scancode = arch.cpu.io.inb(data_port);
     stream.scancodes.append(scancode);
 }
 
