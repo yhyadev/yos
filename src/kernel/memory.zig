@@ -92,9 +92,15 @@ pub const PageAllocator = struct {
 
         if (!initialized) @panic("free is called while the page allocator is not initialized");
 
-        for (page_bitmap, 0..) |page_bit, i| {
-            if (page_bit == 1 and memory_region.ptr + i * min_page_size == buf.ptr) {
-                page_bitmap[i] = 0;
+        const required_page_count = std.math.divCeil(usize, buf.len, min_page_size) catch unreachable;
+
+        for (0..page_bitmap.len) |i| {
+            if ((memory_region.ptr + (i * min_page_size)) == buf.ptr) {
+                for (i..i + required_page_count) |j| {
+                    page_bitmap[j] = 0;
+                }
+
+                break;
             }
         }
     }
