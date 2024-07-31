@@ -52,9 +52,12 @@ pub const interrupts = struct {
         asm volatile ("cli");
     }
 
-    /// Invoke breakpoint interrupt
-    pub inline fn int3() void {
-        asm volatile ("int $3");
+    /// Invoke interrupt
+    pub inline fn int(irq: u8) void {
+        asm volatile ("int %[irq]"
+            :
+            : [irq] "N" (irq),
+        );
     }
 
     /// Wait for interrupt, this is usually used to put the CPU to sleep
