@@ -54,7 +54,7 @@ fn stage1() noreturn {
     stage2();
 }
 
-/// Second stage: Running the scheduler and joining user-space
+/// Second stage: Run the scheduler and join user-space
 fn stage2() noreturn {
     arch.cpu.interrupts.enable();
 
