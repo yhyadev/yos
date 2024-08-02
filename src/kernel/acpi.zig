@@ -43,7 +43,7 @@ pub const Fadt = extern struct {
     header: SdtHeader align(1),
     firmware_ctrl: u32 align(1),
     dsdt: u32 align(1),
-    rsv_a: u32 align(1) = 0,
+    reserved_1: u32 align(1) = 0,
     preferred_power_management_profile: u8 align(1),
     sci_interrupt: u16 align(1),
     smi_command_port: u32 align(1),
@@ -76,13 +76,13 @@ pub const Fadt = extern struct {
     day_alarm: u8 align(1),
     month_alarm: u8 align(1),
     century: u8 align(1),
-    rsv_b: u16 align(1) = 0,
-    rsv_c: u8 align(1) = 0,
+    reserved_2: u16 align(1) = 0,
+    reserved_3: u8 align(1) = 0,
     flags: u32 align(1),
     reset_reg: [12]u8 align(1),
     reset_value: u8 align(1),
-    rsv_d: u16 align(1) = 0,
-    rsv_e: u8 align(1) = 0,
+    reserved_4: u16 align(1) = 0,
+    reserved_5: u8 align(1) = 0,
 };
 
 /// Differentiated Description Table
