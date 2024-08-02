@@ -1,7 +1,7 @@
 const std = @import("std");
 const acpi = @import("../../acpi.zig");
 
-var base_address: usize = 0xFEC00000;
+var pointer: usize = 0xFEC00000;
 
 const Register = enum {
     ioapicid,
@@ -26,13 +26,13 @@ const Register = enum {
 };
 
 fn read(comptime register: Register) register.Type() {
-    @as(*allowzero u8, @ptrFromInt(base_address)).* = register.getOffset();
-    return @as(*allowzero register.Type(), @ptrFromInt(base_address + 0x10)).*;
+    @as(*allowzero u8, @ptrFromInt(pointer)).* = register.getOffset();
+    return @as(*allowzero register.Type(), @ptrFromInt(pointer + 0x10)).*;
 }
 
 fn write(comptime register: Register, value: register.Type()) void {
-    @as(*allowzero u8, @ptrFromInt(base_address)).* = register.getOffset();
-    @as(*allowzero register.Type(), @ptrFromInt(base_address + 0x10)).* = value;
+    @as(*allowzero u8, @ptrFromInt(pointer)).* = register.getOffset();
+    @as(*allowzero register.Type(), @ptrFromInt(pointer + 0x10)).* = value;
 }
 
 pub const RedEntry = packed struct(u64) {
@@ -75,11 +75,11 @@ pub const RedEntry = packed struct(u64) {
 pub fn readRedEntry(n: usize) RedEntry {
     const offset: u8 = @truncate(0x10 + n * 2);
 
-    @as(*allowzero u8, @ptrFromInt(base_address)).* = offset;
-    const low = @as(*allowzero u32, @ptrFromInt(base_address + 0x10)).*;
+    @as(*allowzero u8, @ptrFromInt(pointer)).* = offset;
+    const low = @as(*allowzero u32, @ptrFromInt(pointer + 0x10)).*;
 
-    @as(*allowzero u8, @ptrFromInt(base_address)).* = offset + 1;
-    const high = @as(*allowzero u32, @ptrFromInt(base_address + 0x10)).*;
+    @as(*allowzero u8, @ptrFromInt(pointer)).* = offset + 1;
+    const high = @as(*allowzero u32, @ptrFromInt(pointer + 0x10)).*;
 
     const int: u64 = (@as(u64, high) << 32) | low;
 
@@ -91,16 +91,16 @@ pub fn writeRedEntry(n: usize, entry: RedEntry) void {
 
     const int: u64 = @bitCast(entry);
 
-    @as(*allowzero u8, @ptrFromInt(base_address)).* = offset;
-    @as(*allowzero u32, @ptrFromInt(base_address + 0x10)).* = @truncate(int);
+    @as(*allowzero u8, @ptrFromInt(pointer)).* = offset;
+    @as(*allowzero u32, @ptrFromInt(pointer + 0x10)).* = @truncate(int);
 
-    @as(*allowzero u8, @ptrFromInt(base_address)).* = offset + 1;
-    @as(*allowzero u32, @ptrFromInt(base_address + 0x10)).* = @truncate(int >> 32);
+    @as(*allowzero u8, @ptrFromInt(pointer)).* = offset + 1;
+    @as(*allowzero u32, @ptrFromInt(pointer + 0x10)).* = @truncate(int >> 32);
 }
 
 pub fn init() void {
     if (acpi.madt) |madt| {
-        base_address = madt.getIoApicAddr();
+        pointer = madt.getIoApic();
     } else {
         @panic("no io apic available");
     }

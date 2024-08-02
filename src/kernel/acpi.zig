@@ -16,7 +16,7 @@ pub const Rsdp = extern struct {
     checksum: u8 align(1),
     oemid: [6]u8 align(1),
     revision: u8 align(1),
-    rsdt_address: u32 align(1),
+    rsdt_pointer: u32 align(1),
 };
 
 /// System Description Table Header
@@ -93,19 +93,19 @@ pub const Dsdt = extern struct {
 /// Multiple APIC Description Table
 pub const Madt = extern struct {
     header: SdtHeader align(1),
-    lapic_addr: u32 align(1),
+    lapic_pointer: u32 align(1),
     flags: u32 align(1),
 
-    pub fn getIoApicAddr(self: *Madt) usize {
-        var ptr = @as([*]u8, @ptrCast(self));
+    pub fn getIoApic(self: *Madt) usize {
+        var pointer = @as([*]u8, @ptrCast(self));
 
-        ptr += @sizeOf(Madt);
+        pointer += @sizeOf(Madt);
 
         while (true) {
-            if (ptr[0] == 1) {
-                return memory.virtFromPhys(std.mem.readInt(u32, ptr[4..8], .little));
+            if (pointer[0] == 1) {
+                return memory.virtFromPhys(std.mem.readInt(u32, pointer[4..8], .little));
             } else {
-                ptr += ptr[1];
+                pointer += pointer[1];
             }
         }
     }
@@ -136,7 +136,7 @@ pub fn init() void {
                 @panic("bad rsdp signature");
             }
 
-            rsdt = @ptrFromInt(memory.virtFromPhys(rsdp.rsdt_address));
+            rsdt = @ptrFromInt(memory.virtFromPhys(rsdp.rsdt_pointer));
 
             if (!std.mem.eql(u8, "RSDT", &rsdt.header.signature)) {
                 @panic("bad rsdt signature");
