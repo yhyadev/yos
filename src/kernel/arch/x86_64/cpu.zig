@@ -1,5 +1,10 @@
 const GlobalDescriptorTable = @import("gdt.zig").GlobalDescriptorTable;
-const InterruptDescriptorTable = @import("idt.zig").InterruptDescriptorTable;
+
+const idt = @import("idt.zig");
+const InterruptStackFrame = idt.InterruptStackFrame;
+const InterruptDescriptorTable = idt.InterruptDescriptorTable;
+
+const lapic = @import("lapic.zig");
 
 pub const registers = struct {
     pub const RFlags = packed struct(u64) {
@@ -104,6 +109,24 @@ pub const interrupts = struct {
     /// Wait for interrupt, this is usually used to put the CPU to sleep
     pub inline fn hlt() void {
         asm volatile ("hlt");
+    }
+
+    /// Handle specific interrupt request (offset by 32)
+    pub inline fn handle(irq: u8, comptime handler: *const fn () void) void {
+        const runHandler = struct {
+            pub fn runHandler(_: *InterruptStackFrame) callconv(.Interrupt) void {
+                handler();
+
+                end();
+            }
+        }.runHandler;
+
+        idt.idt.entries[irq + 32].setHandler(@intFromPtr(&runHandler)).setInterruptGate();
+    }
+
+    /// Must be called at the end of an interrupt request
+    pub inline fn end() void {
+        lapic.getLapic().write(.eoi, 0);
     }
 };
 

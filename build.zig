@@ -114,6 +114,7 @@ pub fn build(b: *std.Build) !void {
                 qemu.addArgs(&.{ "-m", "256M" });
                 qemu.addArgs(&.{ "-cdrom", b.getInstallPath(.prefix, b.fmt("iso/{s}.iso", .{image_name})) });
                 qemu.addArgs(&.{ "-boot", "d" });
+                qemu.addArgs(&.{ "-smp", "6" });
 
                 qemu.step.dependOn(&limine_bios_install.step);
 

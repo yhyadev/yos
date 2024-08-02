@@ -112,11 +112,13 @@ pub const Madt = extern struct {
 };
 
 pub fn init() void {
-    if (rsdp_request.response == null) {
+    const maybe_rsdp_response = rsdp_request.response;
+
+    if (maybe_rsdp_response == null) {
         @panic("could not retrieve information about the rsdp");
     }
 
-    const rsdp_response = rsdp_request.response.?;
+    const rsdp_response = maybe_rsdp_response.?;
 
     const rsdp: *Rsdp = @ptrCast(@alignCast(rsdp_response.address));
 

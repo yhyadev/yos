@@ -13,7 +13,7 @@ pub fn Stream(comptime V: type, comptime capacity: usize) type {
         pub fn append(self: *Self, value: V) void {
             if (self.sink) return;
 
-            if (self.len + 1 > capacity) @panic("stream exceeded the initial capacity");
+            if (self.len + 1 > capacity) @panic("the stream exceeded the initial capacity");
 
             var i: usize = 0;
 
