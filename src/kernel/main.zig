@@ -7,6 +7,7 @@ pub const os = @import("os.zig");
 // It is important to be public for @panic builtin and std.debug.print to call it
 pub const panic = crash.panic;
 
+const acpi = @import("acpi.zig");
 const arch = @import("arch.zig");
 const crash = @import("crash.zig");
 const memory = @import("memory.zig");
@@ -30,6 +31,9 @@ export fn _start() noreturn {
 
     tty.print("init: initialize memory allocation feature\n", .{});
     memory.init();
+
+    tty.print("init: initialize power management feature\n", .{});
+    acpi.init();
 
     tty.print("init: initialize architecture specific features\n", .{});
     arch.init();
