@@ -1,5 +1,3 @@
-//! This is not for the playstation 2, it's a wrapper around PS/2 Keyboard functionalities (https://wiki.osdev.org/PS/2_Keyboard)
-
 const arch = @import("../../arch.zig");
 const stream = @import("../../stream.zig");
 

@@ -10,14 +10,16 @@ pub var fadt: ?*Fadt = null;
 pub var dsdt: ?*Dsdt = null;
 pub var madt: ?*Madt = null;
 
+/// Root System Description Pointer
 pub const Rsdp = extern struct {
     signature: [8]u8 align(1),
     checksum: u8 align(1),
     oemid: [6]u8 align(1),
     revision: u8 align(1),
-    rsdt_addr: u32 align(1),
+    rsdt_address: u32 align(1),
 };
 
+/// System Description Table Header
 pub const SdtHeader = extern struct {
     signature: [4]u8 align(1),
     length: u32 align(1),
@@ -30,11 +32,13 @@ pub const SdtHeader = extern struct {
     creator_revision: u32 align(1),
 };
 
+/// Root System Description Table
 pub const Rsdt = extern struct {
     header: SdtHeader align(1),
     entries: [256]u32 align(1),
 };
 
+/// Fixed ACPI Description Table
 pub const Fadt = extern struct {
     header: SdtHeader align(1),
     firmware_ctrl: u32 align(1),
@@ -81,10 +85,12 @@ pub const Fadt = extern struct {
     rsv_e: u8 align(1) = 0,
 };
 
+/// Differentiated Description Table
 pub const Dsdt = extern struct {
     header: SdtHeader align(1),
 };
 
+/// Multiple APIC Description Table
 pub const Madt = extern struct {
     header: SdtHeader align(1),
     lapic_addr: u32 align(1),
@@ -120,15 +126,15 @@ pub fn init() void {
 
     switch (rsdp.revision) {
         0 => {
-            var checksum: usize = 0;
+            var rsdp_checksum: usize = 0;
 
-            for (std.mem.asBytes(rsdp)) |byte| checksum += byte;
+            for (std.mem.asBytes(rsdp)) |byte| rsdp_checksum += byte;
 
-            if ((checksum & 0xFF) != 0) {
+            if ((rsdp_checksum & 0xFF) != 0) {
                 @panic("bad rsdp signature");
             }
 
-            rsdt = @ptrFromInt(memory.virtFromPhys(rsdp.rsdt_addr));
+            rsdt = @ptrFromInt(memory.virtFromPhys(rsdp.rsdt_address));
 
             if (!std.mem.eql(u8, "RSDT", &rsdt.header.signature)) {
                 @panic("bad rsdt signature");
