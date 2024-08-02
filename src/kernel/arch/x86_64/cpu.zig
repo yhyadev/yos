@@ -26,7 +26,8 @@ pub const registers = struct {
         id: u1,
         reserved_5: u42,
 
-        pub fn get() RFlags {
+        /// Read the Flags Register
+        pub inline fn read() RFlags {
             return asm volatile (
                 \\pushfq
                 \\pop %[result]
@@ -34,12 +35,52 @@ pub const registers = struct {
             );
         }
     };
+
+    pub const ModelSpecific = struct {
+        pub const Register = enum(u32) {
+            apic_base = 0x0000_001B,
+            efer = 0xC000_0080,
+            star = 0xC000_0081,
+            lstar = 0xC000_0082,
+            cstar = 0xC000_0083,
+            sf_mask = 0xC000_0084,
+            gs_base = 0xC000_0101,
+            kernel_gs_base = 0xC000_0102,
+        };
+
+        /// Write to a Model Specific Register
+        pub inline fn write(register: Register, value: usize) void {
+            const value_low: u32 = @truncate(value);
+            const value_high: u32 = @truncate(value >> 32);
+
+            asm volatile ("wrmsr"
+                :
+                : [register] "{ecx}" (@intFromEnum(register)),
+                  [value_low] "{eax}" (value_low),
+                  [value_high] "{edx}" (value_high),
+            );
+        }
+
+        /// Read a Model Specific Register
+        pub inline fn read(register: Register) usize {
+            var value_low: u32 = undefined;
+            var value_high: u32 = undefined;
+
+            asm volatile ("rdmsr"
+                : [value_low] "={eax}" (value_low),
+                  [value_high] "={edx}" (value_high),
+                : [register] "{ecx}" (@intFromEnum(register)),
+            );
+
+            return (@as(usize, value_high) << 32) | value_low;
+        }
+    };
 };
 
 pub const interrupts = struct {
     /// Checks if the interrupts is currently enabled
     pub inline fn enabled() bool {
-        return registers.RFlags.get().@"if" == 1;
+        return registers.RFlags.read().@"if" == 1;
     }
 
     /// Enable interrupts
@@ -86,14 +127,14 @@ pub const io = struct {
 };
 
 pub const segments = struct {
-    /// Get the code segment
+    /// Get the Code Segment Selector
     pub inline fn cs() u16 {
         return asm volatile ("mov %cs, %[result]"
             : [result] "={rax}" (-> u16),
         );
     }
 
-    /// Load the GDT
+    /// Load the Global Descriptor Table
     pub inline fn lgdt(gdtr: *const GlobalDescriptorTable.Register) void {
         asm volatile ("lgdt (%[gdtr])"
             :
@@ -101,7 +142,6 @@ pub const segments = struct {
         );
     }
 
-    /// Reload Segments
     pub noinline fn reloadSegments() void {
         asm volatile (
             \\pushq $0x08
@@ -118,7 +158,7 @@ pub const segments = struct {
         );
     }
 
-    /// Load the IDT
+    /// Load the Interrupt Descriptor Table
     pub inline fn lidt(idtr: *const InterruptDescriptorTable.Register) void {
         asm volatile ("lidt (%[idtr])"
             :
@@ -126,7 +166,7 @@ pub const segments = struct {
         );
     }
 
-    /// Load the Task Register (Which is a segment selector of the TSS in the GDT)
+    /// Load the Task Register (Which is a Task State Segment Selector in the Global Descriptor Table)
     pub inline fn ltr(tr: u16) void {
         asm volatile ("ltr %[tr]"
             :
