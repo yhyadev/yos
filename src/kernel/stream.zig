@@ -1,5 +1,6 @@
-pub var scancodes = Stream(u8, 256){ .sink = true };
 pub var sink = Stream(u8, 0){ .sink = true };
+
+pub var scancodes = Stream(u8, 256){};
 
 pub fn Stream(comptime V: type, comptime capacity: usize) type {
     return struct {
@@ -13,7 +14,9 @@ pub fn Stream(comptime V: type, comptime capacity: usize) type {
         pub fn append(self: *Self, value: V) void {
             if (self.sink) return;
 
-            if (self.len + 1 > capacity) @panic("the stream exceeded the initial capacity");
+            if (self.len + 1 > capacity) {
+                self.len = 0;
+            }
 
             var i: usize = 0;
 
