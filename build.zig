@@ -49,30 +49,19 @@ pub fn build(b: *std.Build) !void {
     }
 
     {
-        const image_name = "yos";
+        const iso_tree = b.addWriteFiles();
 
-        std.fs.makeDirAbsolute(b.getInstallPath(.prefix, ".")) catch {};
+        _ = iso_tree.addCopyFile(kernel.getEmittedBin(), "boot/kernel");
 
-        std.fs.deleteTreeAbsolute(b.getInstallPath(.prefix, "iso_root/")) catch {};
-        try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/"));
+        _ = iso_tree.addCopyFile(b.path("limine.cfg"), "boot/limine/limine.cfg");
 
-        try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/boot/"));
-        try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/boot/limine/"));
-        try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/EFI/"));
-        try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso_root/EFI/BOOT/"));
+        _ = iso_tree.addCopyFile(limine_raw.path("limine-bios.sys"), "boot/limine/limine-bios.sys");
 
-        std.fs.deleteTreeAbsolute(b.getInstallPath(.prefix, "iso/")) catch {};
-        try std.fs.makeDirAbsolute(b.getInstallPath(.prefix, "iso/"));
+        _ = iso_tree.addCopyFile(limine_raw.path("limine-bios-cd.bin"), "boot/limine/limine-bios-cd.bin");
+        _ = iso_tree.addCopyFile(limine_raw.path("limine-uefi-cd.bin"), "boot/limine/limine-uefi-cd.bin");
 
-        const copy_kernel = b.addInstallArtifact(kernel, .{ .dest_dir = .{ .override = .{ .custom = "iso_root/boot/" } } });
-
-        const copy_limine_cfg = b.addInstallFile(b.path("limine.cfg"), "iso_root/boot/limine/limine.cfg");
-        const copy_limine_bios_sys = b.addInstallFile(limine_raw.path("limine-bios.sys"), "iso_root/boot/limine/limine-bios.sys");
-        const copy_limine_bios_cd_bin = b.addInstallFile(limine_raw.path("limine-bios-cd.bin"), "iso_root/boot/limine/limine-bios-cd.bin");
-        const copy_limine_uefi_cd_bin = b.addInstallFile(limine_raw.path("limine-uefi-cd.bin"), "iso_root/boot/limine/limine-uefi-cd.bin");
-
-        const copy_limine_boot_x64 = b.addInstallFile(limine_raw.path("BOOTX64.EFI"), "iso_root/EFI/BOOT/BOOTX64.EFI");
-        const copy_limine_boot_ia32 = b.addInstallFile(limine_raw.path("BOOTIA32.EFI"), "iso_root/EFI/BOOT/BOOTIA32.EFI");
+        _ = iso_tree.addCopyFile(limine_raw.path("BOOTX64.EFI"), "EFI/BOOT/BOOTX64.EFI");
+        _ = iso_tree.addCopyFile(limine_raw.path("BOOTIA32.EFI"), "EFI/BOOT/BOOTIA32.EFI");
 
         const mkisofs = b.addSystemCommand(&.{ "xorriso", "-as", "mkisofs" });
 
@@ -80,29 +69,28 @@ pub fn build(b: *std.Build) !void {
         mkisofs.addArgs(&.{ "-no-emul-boot", "-boot-load-size", "4", "-boot-info-table" });
         mkisofs.addArgs(&.{ "--efi-boot", "boot/limine/limine-uefi-cd.bin" });
         mkisofs.addArgs(&.{ "-efi-boot-part", "--efi-boot-image", "--protective-msdos-label" });
-        mkisofs.addArg(b.getInstallPath(.prefix, "iso_root"));
-        mkisofs.addArgs(&.{ "-o", b.getInstallPath(.prefix, b.fmt("iso/{s}.iso", .{image_name})) });
+        mkisofs.addDirectoryArg(iso_tree.getDirectory());
+        mkisofs.addArg("-o");
+        const iso_output = mkisofs.addOutputFileArg("yos.iso");
 
-        mkisofs.step.dependOn(&copy_kernel.step);
+        mkisofs.step.dependOn(&iso_tree.step);
 
-        mkisofs.step.dependOn(&copy_limine_cfg.step);
-        mkisofs.step.dependOn(&copy_limine_bios_sys.step);
-        mkisofs.step.dependOn(&copy_limine_bios_cd_bin.step);
-        mkisofs.step.dependOn(&copy_limine_uefi_cd_bin.step);
+        const limine_exe = b.addExecutable(.{
+            .name = "limine",
+            .target = b.host,
+            .optimize = .ReleaseFast,
+        });
 
-        mkisofs.step.dependOn(&copy_limine_boot_x64.step);
-        mkisofs.step.dependOn(&copy_limine_boot_ia32.step);
+        limine_exe.addCSourceFile(.{ .file = limine_raw.path("limine.c"), .flags = &.{"-std=c99"} });
+        limine_exe.linkLibC();
 
-        const limine_bin_build = b.addSystemCommand(&.{"make"});
-        limine_bin_build.setCwd(limine_raw.path("."));
-
-        const limine_bios_install = b.addSystemCommand(&.{ "./limine", "bios-install", b.getInstallPath(.prefix, b.fmt("iso/{s}.iso", .{image_name})) });
-        limine_bios_install.setCwd(limine_raw.path("."));
+        const limine_bios_install = b.addRunArtifact(limine_exe);
+        limine_bios_install.addArg("bios-install");
+        limine_bios_install.addFileArg(iso_output);
 
         limine_bios_install.step.dependOn(&mkisofs.step);
-        limine_bios_install.step.dependOn(&limine_bin_build.step);
 
-        const iso_step = b.step("iso", "Bundle into an iso image");
+        const iso_step = b.step("iso", "Bundle into an ISO image");
 
         iso_step.dependOn(&limine_bios_install.step);
 
@@ -112,13 +100,14 @@ pub fn build(b: *std.Build) !void {
 
                 qemu.addArgs(&.{ "-M", "q35" });
                 qemu.addArgs(&.{ "-m", "256M" });
-                qemu.addArgs(&.{ "-cdrom", b.getInstallPath(.prefix, b.fmt("iso/{s}.iso", .{image_name})) });
+                qemu.addArgs(&.{"-cdrom"});
+                qemu.addFileArg(iso_output);
                 qemu.addArgs(&.{ "-boot", "d" });
                 qemu.addArgs(&.{ "-smp", "6" });
 
                 qemu.step.dependOn(&limine_bios_install.step);
 
-                const run_step = b.step("run", "Run the bundled iso in QEMU");
+                const run_step = b.step("run", "Run the bundled ISO in QEMU");
 
                 run_step.dependOn(&qemu.step);
             },
