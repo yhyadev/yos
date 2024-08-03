@@ -29,27 +29,46 @@ pub export fn _start() noreturn {
     smp.init(stage1);
 }
 
+/// Did the first core finish first stage?
+var stage1_done = false;
+
 /// First stage: Initialize features
 fn stage1() noreturn {
     arch.cpu.interrupts.disable();
 
-    // Initialize screen drawing
-    screen.init();
+    const core_id = smp.getCoreId();
 
-    // Initialize teletype emulation on screen
-    tty.init();
+    if (core_id == 0) {
+        // Initialize screen drawing
+        screen.init();
 
-    // Initialize memory allocation
-    memory.init();
+        // Initialize teletype emulation on screen
+        tty.init();
 
-    // Initialize power management
-    acpi.init();
+        // Initialize memory allocation
+        memory.init();
 
-    // Initialize architecture-specific features (ioapic, lapic, idt, etc...)
-    arch.init();
+        // Initialize power management
+        acpi.init();
 
-    // Initialize ps/2 keyboard
-    ps2.init();
+        // Initialize architecture-specific features (ioapic, lapic, idt, etc...)
+        arch.init();
+
+        // Initialize ps/2 keyboard
+        ps2.init();
+
+        stage1_done = true;
+    } else {
+        while (!stage1_done) {
+            arch.cpu.interrupts.hlt();
+        }
+
+        // Initialize architecture-specific features (ioapic, lapic, idt, etc...)
+        arch.init();
+
+        // Initialize ps/2 keyboard
+        ps2.init();
+    }
 
     stage2();
 }

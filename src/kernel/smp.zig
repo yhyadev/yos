@@ -9,7 +9,7 @@ pub var core_count: u64 = undefined;
 
 pub var bootstrap_lapic_id: u32 = undefined;
 
-pub fn getCoreID() u64 {
+pub fn getCoreId() u64 {
     return arch.cpu.registers.ModelSpecific.read(.kernel_gs_base);
 }
 
