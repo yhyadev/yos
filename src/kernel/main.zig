@@ -59,15 +59,10 @@ fn stage1() noreturn {
 
         stage1_done = true;
     } else {
-        while (!stage1_done) {
-            arch.cpu.interrupts.hlt();
-        }
+        while (!stage1_done) {}
 
         // Initialize architecture-specific features (ioapic, lapic, idt, etc...)
         arch.init();
-
-        // Initialize ps/2 keyboard
-        ps2.init();
     }
 
     stage2();
