@@ -96,6 +96,8 @@ pub fn build(b: *std.Build) !void {
 
         switch (target.result.cpu.arch) {
             .x86_64 => {
+                const core_count = b.option(u64, "core-count", "The amount of cores to use in QEMU (default is 1)") orelse 1;
+
                 const qemu = b.addSystemCommand(&.{"qemu-system-x86_64"});
 
                 qemu.addArgs(&.{ "-M", "q35" });
@@ -103,7 +105,7 @@ pub fn build(b: *std.Build) !void {
                 qemu.addArgs(&.{"-cdrom"});
                 qemu.addFileArg(iso_output);
                 qemu.addArgs(&.{ "-boot", "d" });
-                qemu.addArgs(&.{ "-smp", "6" });
+                qemu.addArgs(&.{ "-smp", b.fmt("{}", .{core_count}) });
 
                 qemu.step.dependOn(&limine_bios_install.step);
 
