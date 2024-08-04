@@ -1,3 +1,7 @@
+//! Programmable Interrupt Controller
+//!
+//! The predeccessor of Advanced Programmable Interrupt Controller
+
 const cpu = @import("cpu.zig");
 
 pub const master_command_port = 0x20;
@@ -26,14 +30,16 @@ pub const icw4_sfnm = 0x10;
 
 pub const eoi = 0x20;
 
-// Quote from complete-pic rust crate:
-//       "We need to add a delay between writes to our PICs, especially on
-//       older motherboards. But we don't necessarily have any kind of
-//       timers yet, because most of them require interrupts. Various
-//       older versions of Linux and other PC operating systems have
-//       worked around this by writing garbage data to port 0x80, which
-//       allegedly takes long enough to make everything work on most
-//       hardware."
+// Quote from complete-pic (Rust Crate):
+//
+// "We need to add a delay between writes to our PICs, especially on
+// older motherboards. But we don't necessarily have any kind of
+// timers yet, because most of them require interrupts. Various
+// older versions of Linux and other PC operating systems have
+// worked around this by writing garbage data to port 0x80, which
+// allegedly takes long enough to make everything work on most
+// hardware."
+//
 fn wait() void {
     cpu.io.outb(0x80, 0);
 }

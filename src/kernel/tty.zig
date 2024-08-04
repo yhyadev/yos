@@ -1,3 +1,7 @@
+//! Teletype
+//!
+//! A small terninal emulation so we can display messages on screen
+
 const std = @import("std");
 
 const arch = @import("arch.zig");
@@ -5,20 +9,26 @@ const screen = @import("screen.zig");
 
 const SpinLock = @import("locks/SpinLock.zig");
 
-pub const font: Font = .{
+var mutex: SpinLock = .{};
+
+/// The font that we use for drawing on the screen, all fields must be known at compile time
+/// and never changed
+const font: Font = .{
     .data = @embedFile("assets/fonts/vga8x16.bin"),
     .text_width = 8,
     .text_height = 16,
 };
 
-pub const Font = struct {
+const Font = struct {
+    /// A Bit Map containing the shape of each character, it must be compatible with
+    /// the ASCII Table so we can get the shape using the character itself
     data: []const u8,
     text_width: usize,
     text_height: usize,
 };
 
-var mutex: SpinLock = .{};
-
+/// The current state of the tty, used for keeping the current x and y or other information, it
+/// is public so you can change the background or foreground (don't touch other fields)
 pub var state: State = .{};
 
 pub const State = struct {

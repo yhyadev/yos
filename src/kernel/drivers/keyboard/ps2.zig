@@ -1,3 +1,7 @@
+//! PS/2 Keyboard
+//!
+//! An implementation of the PS/2 Keyboard
+
 const arch = @import("../../arch.zig");
 const smp = @import("../../smp.zig");
 const stream = @import("../../stream.zig");
@@ -14,7 +18,8 @@ const enable_first_port = disable_first_port + 0x01;
 const disable_second_port = 0xA7;
 const enable_second_port = disable_second_port + 0x01;
 
-pub fn interrupt() void {
+/// Called when the PS/2 Keyboard makes an interrupt
+fn interrupt() void {
     const scancode = arch.cpu.io.inb(data_port);
 
     if (initialized) {
@@ -22,11 +27,13 @@ pub fn interrupt() void {
     }
 }
 
+/// Disable the communication of the PS/2 Keyboard
 pub fn enable() void {
     arch.cpu.io.outb(command_port, enable_first_port);
     arch.cpu.io.outb(command_port, enable_second_port);
 }
 
+// Disable the communication of the PS/2 Keyboard
 pub fn disable() void {
     arch.cpu.io.outb(command_port, disable_first_port);
     arch.cpu.io.outb(command_port, disable_second_port);
@@ -35,8 +42,10 @@ pub fn disable() void {
 pub fn init() void {
     disable();
 
+    // Setup the interrupt handler
     arch.cpu.interrupts.handle(1, interrupt);
 
+    // On x86 CPUs remove the mask of the PS/2 Keyboard interrupt and set the vector of where the interrupt is
     if (arch.target_cpu.isX86()) {
         var red_entry = arch.ioapic.readRedEntry(1);
         red_entry.mask = false;

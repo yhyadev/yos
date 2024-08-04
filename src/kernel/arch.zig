@@ -19,9 +19,3 @@ pub const ioapic = switch (target_cpu) {
 pub fn init() void {
     system.init();
 }
-
-pub inline fn hang() noreturn {
-    while (true) {
-        cpu.interrupts.hlt();
-    }
-}

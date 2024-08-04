@@ -1,3 +1,7 @@
+//! Memory Allocation
+//!
+//! An implementaion of various memory allocators such as page allocator
+
 const std = @import("std");
 const limine = @import("limine");
 
@@ -8,21 +12,23 @@ const SpinLock = @import("locks/SpinLock.zig");
 export var memory_map_request: limine.MemoryMapRequest = .{};
 export var hhdm_request: limine.HhdmRequest = .{};
 
+/// The best memory region we could find
 var memory_region: []u8 = undefined;
-var memory_region_allocator: std.heap.FixedBufferAllocator = undefined;
 
+/// Higher Half Direct Memory Offset, which is just a way to say an offset
+/// of physical memory to virtual memory
 var hhdm_offset: u64 = undefined;
 
 pub const PageAllocator = struct {
     var initialized = false;
 
-    const min_page_size = 4096;
+    var mutex: SpinLock = .{};
+
+    const min_page_size = std.mem.page_size;
 
     var page_bitmap: std.DynamicBitSetUnmanaged = .{};
 
     var page_count: u64 = 0;
-
-    var mutex: SpinLock = .{};
 
     pub const vtable: std.mem.Allocator.VTable = .{
         .alloc = alloc,
@@ -35,7 +41,9 @@ pub const PageAllocator = struct {
 
         const required_page_count = std.math.divCeil(usize, page_count, min_page_size * @sizeOf(std.DynamicBitSetUnmanaged.MaskInt)) catch unreachable;
 
-        page_bitmap = std.DynamicBitSetUnmanaged.initEmpty(memory_region_allocator.allocator(), page_count) catch @panic("out of memory");
+        var page_bitmap_allocator = std.heap.FixedBufferAllocator.init(memory_region);
+
+        page_bitmap = std.DynamicBitSetUnmanaged.initEmpty(page_bitmap_allocator.allocator(), page_count) catch @panic("out of memory");
 
         for (0..required_page_count) |i| {
             page_bitmap.set(i);
@@ -103,8 +111,8 @@ pub const PageAllocator = struct {
     }
 };
 
-pub inline fn virtFromPhys(phys: u64) u64 {
-    return phys + hhdm_offset;
+pub inline fn virtualFromPhysical(physical: u64) u64 {
+    return physical + hhdm_offset;
 }
 
 pub fn init() void {
@@ -124,7 +132,7 @@ pub fn init() void {
 
     for (memory_map_respone.entries()) |memory_map_entry| {
         if (memory_map_entry.kind == .usable and (best_memory_region == null or memory_map_entry.length > best_memory_region.?.len)) {
-            best_memory_region = @as([*]u8, @ptrFromInt(virtFromPhys(memory_map_entry.base)))[0..memory_map_entry.length];
+            best_memory_region = @as([*]u8, @ptrFromInt(virtualFromPhysical(memory_map_entry.base)))[0..memory_map_entry.length];
         }
     }
 
@@ -133,5 +141,4 @@ pub fn init() void {
     }
 
     memory_region = best_memory_region.?;
-    memory_region_allocator = std.heap.FixedBufferAllocator.init(memory_region);
 }

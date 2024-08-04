@@ -1,3 +1,7 @@
+//! Advanced Configuration and Power Interface
+//!
+//! A fancy way to say power management
+
 const std = @import("std");
 const limine = @import("limine");
 
@@ -103,7 +107,7 @@ pub const Madt = extern struct {
 
         while (true) {
             if (pointer[0] == 1) {
-                return memory.virtFromPhys(std.mem.readInt(u32, pointer[4..8], .little));
+                return memory.virtualFromPhysical(std.mem.readInt(u32, pointer[4..8], .little));
             } else {
                 pointer += pointer[1];
             }
@@ -136,7 +140,7 @@ pub fn init() void {
                 @panic("bad rsdp signature");
             }
 
-            rsdt = @ptrFromInt(memory.virtFromPhys(rsdp.rsdt_pointer));
+            rsdt = @ptrFromInt(memory.virtualFromPhysical(rsdp.rsdt_pointer));
 
             if (!std.mem.eql(u8, "RSDT", &rsdt.header.signature)) {
                 @panic("bad rsdt signature");
@@ -145,12 +149,12 @@ pub fn init() void {
             const rsdt_entry_count = (rsdt.header.length - @sizeOf(SdtHeader)) / 4;
 
             for (0..rsdt_entry_count) |i| {
-                const rsdt_entry: *anyopaque = @ptrFromInt(memory.virtFromPhys(rsdt.entries[i]));
+                const rsdt_entry: *anyopaque = @ptrFromInt(memory.virtualFromPhysical(rsdt.entries[i]));
 
                 if (std.mem.eql(u8, "FACP", &@as(*SdtHeader, @ptrCast(rsdt_entry)).signature)) {
                     fadt = @ptrCast(rsdt_entry);
 
-                    dsdt = @ptrFromInt(memory.virtFromPhys(fadt.?.dsdt));
+                    dsdt = @ptrFromInt(memory.virtualFromPhysical(fadt.?.dsdt));
 
                     if (!std.mem.eql(u8, "DSDT", &dsdt.?.header.signature)) {
                         @panic("bad dsdt signature");

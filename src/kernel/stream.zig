@@ -1,3 +1,7 @@
+//! Stream
+//!
+//! An implementation of first in first out stream
+
 pub var sink = Stream(u8, 0){ .sink = true };
 
 pub var scancodes = Stream(u8, 256){};

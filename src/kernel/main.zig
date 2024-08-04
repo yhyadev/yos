@@ -1,3 +1,7 @@
+//! Spawn Point (also called Source File)
+//!
+//! This is where the operating system starts the initialization
+
 const std = @import("std");
 const limine = @import("limine");
 
@@ -22,7 +26,7 @@ export var base_revision: limine.BaseRevision = .{ .revision = 2 };
 pub export fn _start() noreturn {
     // Check if limine understands our base revision
     if (!base_revision.is_supported()) {
-        arch.hang();
+        arch.cpu.hang();
     }
 
     // Initialize symmetric multiprocessing and go to the first stage
@@ -39,10 +43,10 @@ fn stage1() noreturn {
     const core_id = smp.getCoreId();
 
     if (core_id == 0) {
-        // Initialize screen drawing
+        // Initialize screen framebuffers
         screen.init();
 
-        // Initialize teletype emulation on screen
+        // Initialize teletype emulation
         tty.init();
 
         // Initialize memory allocation
@@ -68,9 +72,10 @@ fn stage1() noreturn {
     stage2();
 }
 
-/// Second stage: Run the scheduler and join user-space
+/// Second stage: Join user-space and start scheduling root applications
 fn stage2() noreturn {
     arch.cpu.interrupts.enable();
 
-    arch.hang();
+    tty.print("{}", .{arch.cpu.registers.EFlags.read()});
+    arch.cpu.hang();
 }

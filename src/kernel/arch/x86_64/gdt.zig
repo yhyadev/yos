@@ -1,9 +1,16 @@
+//! Global Descriptor Table
+//!
+//! A fancy thing made by Intel
+
 const cpu = @import("cpu.zig");
 
 pub var backup_kernel_stack: [16 * 4 * 1024]u8 = undefined;
 
 pub var tss: TaskStateSegment.Entry = .{};
 
+/// Task State Segment
+///
+/// Another fancy thing made by Intel
 pub const TaskStateSegment = struct {
     pub const Entry = packed struct(u832) {
         reserved_1: u32 = 0,

@@ -1,3 +1,7 @@
+//! Interrupt Descriptor Table
+//!
+//! A fancy thing made by Intel, cam be also called interrupt vector table
+
 const std = @import("std");
 
 const cpu = @import("cpu.zig");

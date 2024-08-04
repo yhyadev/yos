@@ -1,3 +1,7 @@
+//! Local Advanced Programmable Interrupt Controller
+//!
+//! The successor of Programmable Interrupt Controller, but it is local to the CPU (or Core)
+
 const std = @import("std");
 
 const cpu = @import("cpu.zig");
@@ -39,7 +43,7 @@ pub fn getLapic() Lapic {
 pub fn init() void {
     const core_id = smp.getCoreId();
 
-    lapics[core_id].base = memory.virtFromPhys(cpu.registers.ModelSpecific.read(.apic_base) & 0xFFFFF000);
+    lapics[core_id].base = memory.virtualFromPhysical(cpu.registers.ModelSpecific.read(.apic_base) & 0xFFFFF000);
 
     cpu.registers.ModelSpecific.write(.apic_base, cpu.registers.ModelSpecific.read(.apic_base) | (@as(u64, 1) << 11));
 

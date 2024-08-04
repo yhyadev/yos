@@ -1,3 +1,7 @@
+//! Central Processing Unit
+//!
+//! An abstraction over the CPU features
+
 const GlobalDescriptorTable = @import("gdt.zig").GlobalDescriptorTable;
 
 const idt = @import("idt.zig");
@@ -197,3 +201,10 @@ pub const segments = struct {
         );
     }
 };
+
+/// Wait endlessly
+pub inline fn hang() noreturn {
+    while (true) {
+        interrupts.hlt();
+    }
+}

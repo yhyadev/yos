@@ -1,3 +1,7 @@
+//! Input Output Advanced Programmable Interrupt Controller
+//!
+//! The successor of Programmable Interrupt Controller
+
 const std = @import("std");
 const acpi = @import("../../acpi.zig");
 
