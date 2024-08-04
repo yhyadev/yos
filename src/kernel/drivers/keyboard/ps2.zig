@@ -6,7 +6,9 @@ const arch = @import("../../arch.zig");
 const smp = @import("../../smp.zig");
 const stream = @import("../../stream.zig");
 
-pub const Keyboard = @import("ps2/Keyboard.zig");
+const Keyboard = @import("ps2/Keyboard.zig");
+
+pub var keyboard: Keyboard = .{};
 
 var initialized = false;
 
@@ -23,7 +25,9 @@ fn interrupt() void {
     const scancode = arch.cpu.io.inb(data_port);
 
     if (initialized) {
-        stream.scancodes.append(scancode);
+        if (keyboard.map(scancode)) |key| {
+            stream.keys.append(key);
+        }
     }
 }
 

@@ -2,9 +2,11 @@
 //!
 //! An implementation of first in first out stream
 
+const Key = @import("drivers/keyboard/Key.zig");
+
 pub var sink = Stream(u8, 0){ .sink = true };
 
-pub var scancodes = Stream(u8, 256){};
+pub var keys = Stream(Key, 256){};
 
 pub fn Stream(comptime V: type, comptime capacity: usize) type {
     return struct {
