@@ -28,6 +28,7 @@ pub const FileSystem = struct {
 
         pub const VTable = struct {
             open: ?*const fn (self: *Node) void = null,
+            close: ?*const fn (self: *Node) void = null,
             read: ?*const fn (self: *Node, offset: u64, data: []u8) usize = null,
             write: ?*const fn (self: *Node, offset: u64, data: []const u8) usize = null,
             readDir: ?*const fn (self: *Node, offset: u64, files: []*Node) void = null,
@@ -43,6 +44,13 @@ pub const FileSystem = struct {
         pub fn open(self: *Node) void {
             if (self.vtable.open) |openImpl| {
                 openImpl(self);
+            }
+        }
+
+        /// Close the underlying file or directory
+        pub fn close(self: *Node) void {
+            if (self.vtable.close) |closeImpl| {
+                closeImpl(self);
             }
         }
 
