@@ -18,6 +18,7 @@ const memory = @import("memory.zig");
 const screen = @import("screen.zig");
 const smp = @import("smp.zig");
 const tty = @import("tty.zig");
+const vfs = @import("fs/vfs.zig");
 const ps2 = @import("drivers/keyboard/ps2.zig");
 
 export var base_revision: limine.BaseRevision = .{ .revision = 2 };
@@ -51,6 +52,14 @@ fn stage1() noreturn {
 
         // Initialize memory allocation
         memory.init();
+
+        // After memory allocation is initialized, we now can use the page allocator
+        const allocator = std.heap.page_allocator;
+
+        // Initialize virtual file system
+        vfs.init(allocator) catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+        };
 
         // Initialize power management
         acpi.init();

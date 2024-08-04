@@ -36,14 +36,14 @@ pub const PageAllocator = struct {
         .free = free,
     };
 
-    pub fn init() void {
+    pub fn init() std.mem.Allocator.Error!void {
         page_count = std.math.divCeil(usize, memory_region.len, min_page_size) catch unreachable;
 
         const required_page_count = std.math.divCeil(usize, page_count, min_page_size * @sizeOf(std.DynamicBitSetUnmanaged.MaskInt)) catch unreachable;
 
         var page_bitmap_allocator = std.heap.FixedBufferAllocator.init(memory_region);
 
-        page_bitmap = std.DynamicBitSetUnmanaged.initEmpty(page_bitmap_allocator.allocator(), page_count) catch @panic("out of memory");
+        page_bitmap = try std.DynamicBitSetUnmanaged.initEmpty(page_bitmap_allocator.allocator(), page_count);
 
         for (0..required_page_count) |i| {
             page_bitmap.set(i);
@@ -58,7 +58,7 @@ pub const PageAllocator = struct {
         mutex.lock();
         defer mutex.unlock();
 
-        if (!initialized) PageAllocator.init();
+        if (!initialized) PageAllocator.init() catch return null;
 
         const required_page_count = std.math.divCeil(usize, len, min_page_size) catch unreachable;
 
