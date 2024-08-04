@@ -76,6 +76,5 @@ fn stage1() noreturn {
 fn stage2() noreturn {
     arch.cpu.interrupts.enable();
 
-    tty.print("{}", .{arch.cpu.registers.EFlags.read()});
     arch.cpu.hang();
 }
