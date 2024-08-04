@@ -14,6 +14,7 @@ var mount_points: std.StringHashMapUnmanaged(*FileSystem.Node) = .{};
 
 /// An interface representing a file system
 pub const FileSystem = struct {
+    /// What is the name of this file system?
     name: []const u8,
 
     /// A file or a directory, basically a node in the file system
