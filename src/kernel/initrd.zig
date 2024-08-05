@@ -31,5 +31,5 @@ pub fn init() void {
         @panic("could not find init ramdisk in limine modules");
     }
 
-    tarfs.mount("/initrd", initrd_module.data()) catch @panic("could not mount the init ramdisk");
+    tarfs.mount("/", initrd_module.data()) catch @panic("could not mount the init ramdisk");
 }
