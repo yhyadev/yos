@@ -7,7 +7,6 @@
 const std = @import("std");
 
 const vfs = @import("vfs.zig");
-const tty = @import("../tty.zig");
 
 var backing_allocator: std.mem.Allocator = undefined;
 
