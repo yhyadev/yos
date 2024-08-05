@@ -1,55 +1,107 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) !void {
-    var target_query: std.Target.Query = .{
-        .cpu_arch = .x86_64,
-        .os_tag = .freestanding,
+const Land = enum {
+    kernel,
+    user,
+};
+
+fn getTarget(b: *std.Build, cpu_arch: std.Target.Cpu.Arch, land: Land) !std.Build.ResolvedTarget {
+    return b.resolveTargetQuery(.{
+        .cpu_arch = cpu_arch,
+
+        .os_tag = switch (land) {
+            .kernel => .freestanding,
+            .user => .other,
+        },
+
         .abi = .none,
-    };
 
-    // Disable CPU features that require additional initialization
-    // like MMX, SSE/2 and AVX. That requires us to enable the soft-float feature
-    const Features = std.Target.x86.Feature;
-    target_query.cpu_features_sub.addFeature(@intFromEnum(Features.mmx));
-    target_query.cpu_features_sub.addFeature(@intFromEnum(Features.sse));
-    target_query.cpu_features_sub.addFeature(@intFromEnum(Features.sse2));
-    target_query.cpu_features_sub.addFeature(@intFromEnum(Features.avx));
-    target_query.cpu_features_sub.addFeature(@intFromEnum(Features.avx2));
-    target_query.cpu_features_add.addFeature(@intFromEnum(Features.soft_float));
+        .cpu_features_add = switch (cpu_arch) {
+            .x86_64 => blk: {
+                const Feature = std.Target.x86.Feature;
 
-    const target = b.resolveTargetQuery(target_query);
+                break :blk std.Target.x86.featureSet(&.{
+                    Feature.soft_float,
+                });
+            },
 
-    const optimize = b.standardOptimizeOption(.{});
+            else => return error.UnsupportedArch,
+        },
+
+        .cpu_features_sub = switch (cpu_arch) {
+            .x86_64 => blk: {
+                const Feature = std.Target.x86.Feature;
+
+                break :blk std.Target.x86.featureSet(&.{
+                    Feature.mmx,
+                    Feature.sse,
+                    Feature.sse2,
+                    Feature.sse3,
+                    Feature.avx,
+                    Feature.avx2,
+                });
+            },
+
+            else => return error.UnsupportedArch,
+        },
+    });
+}
+
+pub fn build(b: *std.Build) !void {
+    const cpu_arch = b.option(std.Target.Cpu.Arch, "arch", "The target cpu architecture") orelse .x86_64;
+
+    const kernel_target = try getTarget(b, cpu_arch, .kernel);
+
+    const kernel_optimize = b.standardOptimizeOption(.{});
 
     const limine = b.dependency("limine", .{});
     const limine_raw = b.dependency("limine_raw", .{});
 
-    const kernel = b.addExecutable(.{
+    const kernel_exe = b.addExecutable(.{
         .name = "kernel",
         .root_source_file = b.path("src/kernel/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .target = kernel_target,
+        .optimize = kernel_optimize,
         .code_model = .kernel,
         .pic = true,
     });
 
     {
-        kernel.root_module.addImport("limine", limine.module("limine"));
+        kernel_exe.root_module.addImport("limine", limine.module("limine"));
 
-        switch (target.result.cpu.arch) {
-            .x86_64 => kernel.setLinkerScript(b.path("src/kernel/arch/x86_64/linker.ld")),
+        switch (cpu_arch) {
+            .x86_64 => kernel_exe.setLinkerScript(b.path("src/kernel/arch/x86_64/linker.ld")),
 
-            else => @panic("Target CPU is not supported"),
+            else => return error.UnsupportedArch,
         }
 
         // Disable LTO. This prevents issues with limine requests
-        kernel.want_lto = false;
+        kernel_exe.want_lto = false;
 
-        b.installArtifact(kernel);
+        b.installArtifact(kernel_exe);
     }
 
     {
         const initrd_tree = b.addWriteFiles();
+
+        {
+            const user_apps = try b.build_root.handle.openDir("src/user/apps", .{ .iterate = true });
+
+            const user_apps_target = try getTarget(b, cpu_arch, .user);
+
+            var user_app_iterator = user_apps.iterate();
+
+            while (try user_app_iterator.next()) |user_app| {
+                const user_app_exe = b.addExecutable(.{
+                    .name = user_app.name,
+                    .root_source_file = b.path(b.fmt("src/user/apps/{s}/main.zig", .{user_app.name})),
+                    .target = user_apps_target,
+                    .optimize = .ReleaseSmall,
+                });
+
+                _ = initrd_tree.addCopyFile(user_app_exe.getEmittedBin(), b.fmt("usr/bin/{s}", .{user_app.name}));
+            }
+        }
 
         const tar_compress = b.addSystemCommand(&.{ "tar", "-chRf" });
 
@@ -64,11 +116,11 @@ pub fn build(b: *std.Build) !void {
         tar_compress.step.dependOn(&initrd_tree.step);
 
         const initrd_step = b.step("initrd", "Bundle the initial ramdisk");
-        initrd_step.dependOn(&b.addInstallFile(initrd_output, "initrd").step);
+        initrd_step.dependOn(&b.addInstallBinFile(initrd_output, "initrd").step);
 
         const iso_tree = b.addWriteFiles();
 
-        _ = iso_tree.addCopyFile(kernel.getEmittedBin(), "boot/kernel");
+        _ = iso_tree.addCopyFile(kernel_exe.getEmittedBin(), "boot/kernel");
 
         _ = iso_tree.addCopyFile(initrd_output, "boot/initrd");
 
@@ -117,7 +169,7 @@ pub fn build(b: *std.Build) !void {
 
         iso_step.dependOn(&limine_bios_install.step);
 
-        switch (target.result.cpu.arch) {
+        switch (cpu_arch) {
             .x86_64 => {
                 const core_count = b.option(u64, "core-count", "The amount of cores to use in QEMU (default is 1)") orelse 1;
 
@@ -137,7 +189,7 @@ pub fn build(b: *std.Build) !void {
                 run_step.dependOn(&qemu.step);
             },
 
-            else => @panic("Target CPU is not supported"),
+            else => return error.UnsupportedArch,
         }
     }
 
@@ -145,8 +197,8 @@ pub fn build(b: *std.Build) !void {
         const kernel_check = b.addExecutable(.{
             .name = "kernel",
             .root_source_file = b.path("src/kernel/main.zig"),
-            .target = target,
-            .optimize = optimize,
+            .target = kernel_target,
+            .optimize = kernel_optimize,
             .code_model = .kernel,
             .pic = true,
         });
