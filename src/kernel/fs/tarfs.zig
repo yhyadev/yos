@@ -18,7 +18,6 @@ const Directory = struct {
 
     const vtable: vfs.FileSystem.Node.VTable = .{
         .readDir = &readDir,
-        .fileSize = &fileSize,
         .childCount = &childCount,
     };
 };
@@ -26,6 +25,7 @@ const Directory = struct {
 const File = struct {
     const vtable: vfs.FileSystem.Node.VTable = .{
         .read = &read,
+        .fileSize = &fileSize,
     };
 };
 
