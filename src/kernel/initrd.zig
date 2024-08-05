@@ -2,7 +2,6 @@ const std = @import("std");
 const limine = @import("limine");
 
 const tarfs = @import("fs/tarfs.zig");
-const vfs = @import("fs/vfs.zig");
 
 export var module_request: limine.ModuleRequest = .{};
 
