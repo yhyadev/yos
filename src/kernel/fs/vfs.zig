@@ -34,7 +34,8 @@ pub const FileSystem = struct {
             read: ?*const fn (node: *Node, offset: u64, buffer: []u8) usize = null,
             write: ?*const fn (node: *Node, offset: u64, buffer: []const u8) usize = null,
             readDir: ?*const fn (node: *Node, offset: u64, buffer: []*Node) void = null,
-            fileCount: ?*const fn (node: *Node) usize = null,
+            fileSize: ?*const fn (node: *Node) usize = null,
+            childCount: ?*const fn (node: *Node) usize = null,
         };
 
         pub const Tag = enum {
@@ -87,12 +88,23 @@ pub const FileSystem = struct {
             }
         }
 
-        /// Get the count of files in directory
+        /// Get the amount of bytes in the underlying file
+        pub fn fileSize(self: *Node) usize {
+            if (self.tag == .directory) return 0;
+
+            if (self.vtable.fileSize) |fileSizeImpl| {
+                return fileSizeImpl(self);
+            }
+
+            return 0;
+        }
+
+        /// Get the count of children in the underlying directory
         pub fn fileCount(self: *Node) usize {
             if (self.tag == .file) return 0;
 
-            if (self.vtable.fileCount) |fileCountImpl| {
-                return fileCountImpl(self);
+            if (self.vtable.childCount) |childCountImpl| {
+                return childCountImpl(self);
             }
 
             return 0;

@@ -18,7 +18,8 @@ const Directory = struct {
 
     const vtable: vfs.FileSystem.Node.VTable = .{
         .readDir = &readDir,
-        .fileCount = &fileCount,
+        .fileSize = &fileSize,
+        .childCount = &childCount,
     };
 };
 
@@ -142,7 +143,13 @@ pub fn readDir(node: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSyste
     }
 }
 
-pub fn fileCount(node: *vfs.FileSystem.Node) usize {
+pub fn fileSize(node: *vfs.FileSystem.Node) usize {
+    const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
+
+    return content.len;
+}
+
+pub fn childCount(node: *vfs.FileSystem.Node) usize {
     const directory: *Directory = @ptrCast(@alignCast(node.ctx));
 
     return directory.children.items.len;
