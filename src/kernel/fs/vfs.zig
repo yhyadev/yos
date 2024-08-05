@@ -100,7 +100,7 @@ pub const FileSystem = struct {
         }
 
         /// Get the count of children in the underlying directory
-        pub fn fileCount(self: *Node) usize {
+        pub fn childCount(self: *Node) usize {
             if (self.tag == .file) return 0;
 
             if (self.vtable.childCount) |childCountImpl| {
@@ -164,27 +164,28 @@ pub fn openAbsolute(path: []const u8) OpenAbsoluteError!*FileSystem.Node {
                     continue;
                 }
 
-                const file_count = node.fileCount();
+                const child_count = node.childCount();
 
-                if (file_count == 0) return error.NotFound;
+                if (child_count == 0) return error.NotFound;
 
-                const files = try backing_allocator.alloc(*FileSystem.Node, file_count);
-                defer backing_allocator.free(files);
+                const children = try backing_allocator.alloc(*FileSystem.Node, child_count);
+                defer backing_allocator.free(children);
 
-                node.readDir(0, files);
+                node.readDir(0, children);
 
-                var found_file = false;
+                var found = false;
 
-                for (files) |file| {
-                    if (std.mem.eql(u8, file.name, path_component.name)) {
-                        node = file;
-                        found_file = true;
+                for (children) |child| {
+                    if (std.mem.eql(u8, child.name, path_component.name)) {
+                        node = child;
+
+                        found = true;
 
                         break;
                     }
                 }
 
-                if (!found_file) return error.NotFound;
+                if (!found) return error.NotFound;
             },
         }
     }

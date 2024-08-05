@@ -29,6 +29,9 @@ const File = struct {
     };
 };
 
+var tar_file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+var tar_link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+
 const MountError = vfs.FileSystem.Node.MountError || CreateError;
 
 pub fn mount(path: []const u8, tar_data: []u8) MountError!void {
@@ -46,9 +49,6 @@ pub fn mount(path: []const u8, tar_data: []u8) MountError!void {
     try directory.node.mount(path);
 
     var tar_file_stream = std.io.fixedBufferStream(tar_data);
-
-    var tar_file_name_buffer: [std.fs.max_name_bytes]u8 = undefined;
-    var tar_link_name_buffer: [std.fs.max_name_bytes]u8 = undefined;
 
     var tar_iterator = std.tar.iterator(tar_file_stream.reader(), .{
         .file_name_buffer = &tar_file_name_buffer,
