@@ -1,8 +1,8 @@
 //! Tar File System
 //!
-//! This workes around the standard tar implementation by Zig to be compatible
-//! by the virtual file system we have, this is intended to be used for init ram disk
-//! because the init ram disk is using tar archive to be loaded with the kernel
+//! A read-only file system which uses the standard tar implementation by Zig
+//! This is intended to be used for init ramdisk because the init ramdisk is a tar archive
+//! that is loaded with the kernel by limine bootloader
 
 const std = @import("std");
 
