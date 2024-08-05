@@ -10,3 +10,4 @@ pub const heap = struct {
 };
 
 pub const NAME_MAX = 255;
+pub const PATH_MAX = 4096;
