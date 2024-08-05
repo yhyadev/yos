@@ -1,7 +1,7 @@
 //! Tar File System
 //!
 //! A read-only file system which uses the standard tar implementation by Zig
-//! This is intended to be used for init ramdisk because the init ramdisk is a tar archive
+//! This is intended to be used for initial ramdisk because the init ramdisk is a tar archive
 //! that is loaded with the kernel by limine bootloader
 
 const std = @import("std");

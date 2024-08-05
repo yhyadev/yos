@@ -68,7 +68,7 @@ fn stage1() noreturn {
             error.OutOfMemory => @panic("out of memory"),
         };
 
-        // Initialize the init ramdisk
+        // Initialize the initial ramdisk
         initrd.init();
 
         // Initialize power management

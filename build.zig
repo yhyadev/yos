@@ -63,7 +63,7 @@ pub fn build(b: *std.Build) !void {
 
         tar_compress.step.dependOn(&initrd_tree.step);
 
-        const initrd_step = b.step("initrd", "Bundle the init ramdisk");
+        const initrd_step = b.step("initrd", "Bundle the initial ramdisk");
         initrd_step.dependOn(&b.addInstallFile(initrd_output, "initrd").step);
 
         const iso_tree = b.addWriteFiles();

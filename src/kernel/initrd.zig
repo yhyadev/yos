@@ -28,8 +28,8 @@ pub fn init() void {
     }
 
     if (!found_initrd) {
-        @panic("could not find init ramdisk in limine modules");
+        @panic("could not find initial ramdisk in limine modules");
     }
 
-    tarfs.mount("/", initrd_module.data()) catch @panic("could not mount the init ramdisk");
+    tarfs.mount("/", initrd_module.data()) catch @panic("could not mount the initial ramdisk");
 }
