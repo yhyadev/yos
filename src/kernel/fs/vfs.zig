@@ -23,16 +23,18 @@ pub const FileSystem = struct {
         name: []const u8,
         /// What does this node represent? is it a file or a directory
         tag: Tag,
+        /// Implementation-defined pointer
+        ctx: ?*anyopaque = null,
         /// Table of the features of the node
-        vtable: VTable,
+        vtable: *const VTable,
 
         pub const VTable = struct {
-            open: ?*const fn (self: *Node) void = null,
-            close: ?*const fn (self: *Node) void = null,
-            read: ?*const fn (self: *Node, offset: u64, data: []u8) usize = null,
-            write: ?*const fn (self: *Node, offset: u64, data: []const u8) usize = null,
-            readDir: ?*const fn (self: *Node, offset: u64, files: []*Node) void = null,
-            fileCount: ?*const fn (self: *Node) usize = null,
+            open: ?*const fn (node: *Node) void = null,
+            close: ?*const fn (node: *Node) void = null,
+            read: ?*const fn (node: *Node, offset: u64, buffer: []u8) usize = null,
+            write: ?*const fn (node: *Node, offset: u64, buffer: []const u8) usize = null,
+            readDir: ?*const fn (node: *Node, offset: u64, buffer: []*Node) void = null,
+            fileCount: ?*const fn (node: *Node) usize = null,
         };
 
         pub const Tag = enum {
@@ -55,33 +57,33 @@ pub const FileSystem = struct {
         }
 
         /// Read from the underlying file
-        pub fn read(self: *Node, offset: u64, data: []u8) usize {
+        pub fn read(self: *Node, offset: u64, buffer: []u8) usize {
             if (self.tag == .directory) return 0;
 
             if (self.vtable.read) |readImpl| {
-                return readImpl(self, offset, data);
+                return readImpl(self, offset, buffer);
             }
 
             return 0;
         }
 
         /// Write into the underlying file
-        pub fn write(self: *Node, offset: u64, data: []const u8) usize {
+        pub fn write(self: *Node, offset: u64, buffer: []const u8) usize {
             if (self.tag == .directory) return 0;
 
             if (self.vtable.write) |writeImpl| {
-                return writeImpl(self, offset, data);
+                return writeImpl(self, offset, buffer);
             }
 
             return 0;
         }
 
         /// Read from the underlying directory
-        pub fn readDir(self: *Node, offset: u64, files: []*Node) void {
+        pub fn readDir(self: *Node, offset: u64, buffer: []*Node) void {
             if (self.tag == .file) return;
 
             if (self.vtable.readDir) |readDirImpl| {
-                readDirImpl(self, offset, files);
+                readDirImpl(self, offset, buffer);
             }
         }
 
@@ -96,9 +98,14 @@ pub const FileSystem = struct {
             return 0;
         }
 
+        pub const MountError = error{ PathNotAbsolute, PathNotNormalized } || std.mem.Allocator.Error;
+
         /// Redirect any use of the path provided to this node
-        pub fn mount(self: *Node, mount_point: []const u8) std.mem.Allocator.Error!void {
-            try mount_points.put(backing_allocator, mount_point, self);
+        pub fn mount(self: *Node, path: []const u8) MountError!void {
+            if (!std.fs.path.isAbsolute(path)) return error.PathNotAbsolute;
+            if (path.len > 1 and path[path.len - 1] == '/') return error.PathNotNormalized;
+
+            try mount_points.put(backing_allocator, path, self);
         }
     };
 };
@@ -108,9 +115,14 @@ pub fn installFileSystem(file_system: FileSystem) std.mem.Allocator.Error!void {
     try installed_file_systems.append(backing_allocator, file_system);
 }
 
+pub const UnmountError = error{ PathNotAbsolute, PathNotNormalized };
+
 /// Remove the mount point from the list (which stops redirecting the path)
-pub fn unmount(mount_point: []const u8) void {
-    _ = mount_points.remove(mount_point);
+pub fn unmount(path: []const u8) UnmountError!void {
+    if (!std.fs.path.isAbsolute(path)) return error.PathNotAbsolute;
+    if (path.len > 1 and path[path.len - 1] == '/') return error.PathNotNormalized;
+
+    _ = mount_points.remove(path);
 }
 
 pub const OpenError = error{ NotFound, NotDirectory };
@@ -119,7 +131,7 @@ pub const OpenAbsoluteError = error{PathNotAbsolute} || OpenError || std.mem.All
 
 /// Open the node using an absolute path and return the opened node
 pub fn openAbsolute(path: []const u8) OpenAbsoluteError!*FileSystem.Node {
-    if (!std.fs.path.isAbsolutePosix(path)) return error.PathNotAbsolute;
+    if (!std.fs.path.isAbsolute(path)) return error.PathNotAbsolute;
 
     var node = root;
 
@@ -178,6 +190,6 @@ pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
     root.* = .{
         .name = "",
         .tag = .directory,
-        .vtable = .{},
+        .vtable = &.{},
     };
 }

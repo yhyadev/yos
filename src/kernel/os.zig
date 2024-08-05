@@ -8,3 +8,5 @@ pub const heap = struct {
         .vtable = &memory.PageAllocator.vtable,
     };
 };
+
+pub const NAME_MAX = 255;

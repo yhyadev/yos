@@ -14,10 +14,12 @@ pub const panic = crash.panic;
 const acpi = @import("acpi.zig");
 const arch = @import("arch.zig");
 const crash = @import("crash.zig");
+const initrd = @import("initrd.zig");
 const memory = @import("memory.zig");
 const screen = @import("screen.zig");
 const smp = @import("smp.zig");
 const tty = @import("tty.zig");
+const tarfs = @import("fs/tarfs.zig");
 const vfs = @import("fs/vfs.zig");
 const ps2 = @import("drivers/keyboard/ps2.zig");
 
@@ -60,6 +62,14 @@ fn stage1() noreturn {
         vfs.init(allocator) catch |err| switch (err) {
             error.OutOfMemory => @panic("out of memory"),
         };
+
+        // Initialize tar file system
+        tarfs.init(allocator) catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+        };
+
+        // Initialize the init ramdisk
+        initrd.init();
 
         // Initialize power management
         acpi.init();

@@ -49,9 +49,28 @@ pub fn build(b: *std.Build) !void {
     }
 
     {
+        const initrd_tree = b.addWriteFiles();
+
+        const tar_compress = b.addSystemCommand(&.{ "tar", "-chRf" });
+
+        const initrd_output = tar_compress.addOutputFileArg("initrd");
+
+        tar_compress.addArg("-C");
+
+        tar_compress.addDirectoryArg(initrd_tree.getDirectory());
+
+        tar_compress.addArg(".");
+
+        tar_compress.step.dependOn(&initrd_tree.step);
+
+        const initrd_step = b.step("initrd", "Bundle the init ramdisk");
+        initrd_step.dependOn(&b.addInstallFile(initrd_output, "initrd").step);
+
         const iso_tree = b.addWriteFiles();
 
         _ = iso_tree.addCopyFile(kernel.getEmittedBin(), "boot/kernel");
+
+        _ = iso_tree.addCopyFile(initrd_output, "boot/initrd");
 
         _ = iso_tree.addCopyFile(b.path("limine.cfg"), "boot/limine/limine.cfg");
 
@@ -63,6 +82,8 @@ pub fn build(b: *std.Build) !void {
         _ = iso_tree.addCopyFile(limine_raw.path("BOOTX64.EFI"), "EFI/BOOT/BOOTX64.EFI");
         _ = iso_tree.addCopyFile(limine_raw.path("BOOTIA32.EFI"), "EFI/BOOT/BOOTIA32.EFI");
 
+        iso_tree.step.dependOn(&tar_compress.step);
+
         const mkisofs = b.addSystemCommand(&.{ "xorriso", "-as", "mkisofs" });
 
         mkisofs.addArgs(&.{ "-b", "boot/limine/limine-bios-cd.bin" });
@@ -71,6 +92,7 @@ pub fn build(b: *std.Build) !void {
         mkisofs.addArgs(&.{ "-efi-boot-part", "--efi-boot-image", "--protective-msdos-label" });
         mkisofs.addDirectoryArg(iso_tree.getDirectory());
         mkisofs.addArg("-o");
+
         const iso_output = mkisofs.addOutputFileArg("yos.iso");
 
         mkisofs.step.dependOn(&iso_tree.step);
@@ -85,6 +107,7 @@ pub fn build(b: *std.Build) !void {
         limine_exe.linkLibC();
 
         const limine_bios_install = b.addRunArtifact(limine_exe);
+
         limine_bios_install.addArg("bios-install");
         limine_bios_install.addFileArg(iso_output);
 
