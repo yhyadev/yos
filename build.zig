@@ -99,6 +99,12 @@ pub fn build(b: *std.Build) !void {
                     .optimize = .ReleaseSmall,
                 });
 
+                switch (cpu_arch) {
+                    .x86_64 => user_app_exe.setLinkerScript(b.path("src/user/arch/x86_64/linker.ld")),
+
+                    else => return error.UnsupportedArch,
+                }
+
                 _ = initrd_tree.addCopyFile(user_app_exe.getEmittedBin(), b.fmt("usr/bin/{s}", .{user_app.name}));
             }
         }
