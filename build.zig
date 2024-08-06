@@ -48,7 +48,7 @@ fn getTarget(b: *std.Build, cpu_arch: std.Target.Cpu.Arch, land: Land) !std.Buil
 }
 
 pub fn build(b: *std.Build) !void {
-    const cpu_arch = b.option(std.Target.Cpu.Arch, "arch", "The target cpu architecture") orelse .x86_64;
+    const cpu_arch = b.option(std.Target.Cpu.Arch, "arch", "The target cpu architecture (default is x86_64)") orelse .x86_64;
 
     const kernel_target = try getTarget(b, cpu_arch, .kernel);
 
@@ -172,6 +172,7 @@ pub fn build(b: *std.Build) !void {
         switch (cpu_arch) {
             .x86_64 => {
                 const core_count = b.option(u64, "core-count", "The amount of cores to use in QEMU (default is 1)") orelse 1;
+                const wait_gdb = b.option(bool, "gdb", "Wait for GDB to connect to port :1234 (default is false)") orelse false;
 
                 const qemu = b.addSystemCommand(&.{"qemu-system-x86_64"});
 
@@ -181,6 +182,7 @@ pub fn build(b: *std.Build) !void {
                 qemu.addFileArg(iso_output);
                 qemu.addArgs(&.{ "-boot", "d" });
                 qemu.addArgs(&.{ "-smp", b.fmt("{}", .{core_count}) });
+                if (wait_gdb) qemu.addArgs(&.{ "-s", "-S" });
 
                 qemu.step.dependOn(&limine_bios_install.step);
 
