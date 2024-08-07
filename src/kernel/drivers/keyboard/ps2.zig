@@ -26,11 +26,12 @@ pub fn enable() void {
     arch.cpu.io.outb(command_port, enable_second_port);
 }
 
-// Disable the communication of the PS/2 Keyboard
+/// Disable the communication of the PS/2 Keyboard
 pub fn disable() void {
     arch.cpu.io.outb(command_port, disable_first_port);
     arch.cpu.io.outb(command_port, disable_second_port);
 }
+
 /// Called when the PS/2 Keyboard makes an interrupt
 fn interrupt(_: *arch.cpu.process.Context) callconv(.C) void {
     defer arch.cpu.interrupts.end();
