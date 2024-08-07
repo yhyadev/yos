@@ -24,7 +24,7 @@ pub fn init(comptime jumpPoint: *const fn () noreturn) noreturn {
 
     core_count = smp_response.cpu_count;
 
-    if (arch.target_cpu.isX86()) {
+    if (arch.target.isX86()) {
         bootstrap_lapic_id = smp_response.bsp_lapic_id;
     }
 

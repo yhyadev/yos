@@ -15,7 +15,7 @@ pub fn init() void {
     const maybe_framebuffer_response = framebuffer_request.response;
 
     if (maybe_framebuffer_response == null or maybe_framebuffer_response.?.framebuffers().len == 0) {
-        arch.cpu.hang();
+        arch.cpu.process.hang();
     }
 
     const framebuffer_response = maybe_framebuffer_response.?;

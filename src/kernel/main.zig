@@ -16,6 +16,7 @@ const arch = @import("arch.zig");
 const crash = @import("crash.zig");
 const initrd = @import("initrd.zig");
 const memory = @import("memory.zig");
+const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const smp = @import("smp.zig");
 const tty = @import("tty.zig");
@@ -29,7 +30,7 @@ export var base_revision: limine.BaseRevision = .{ .revision = 2 };
 pub export fn _start() noreturn {
     // Check if limine understands our base revision
     if (!base_revision.is_supported()) {
-        arch.cpu.hang();
+        arch.cpu.process.hang();
     }
 
     // Initialize symmetric multiprocessing and go to the first stage
@@ -71,6 +72,9 @@ fn stage1() noreturn {
         // Initialize the initial ramdisk
         initrd.init();
 
+        // Initialize scheduler
+        scheduler.init(allocator);
+
         // Initialize power management
         acpi.init();
 
@@ -91,9 +95,19 @@ fn stage1() noreturn {
     stage2();
 }
 
-/// Second stage: Join user-space and start scheduling root applications
+/// Second stage: Start scheduling applications
 fn stage2() noreturn {
     arch.cpu.interrupts.enable();
 
-    arch.cpu.hang();
+    // Load the initial process
+    scheduler.setInitialProcess("/usr/bin/init") catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+        error.NotFound => @panic("the initial process file is not found in initial ramdisk"),
+        error.NotDirectory => @panic("the initial process path is incorrect, caused by a component that is not directory"),
+        error.BadElf => @panic("the initial process file is an incorrect elf"),
+        error.PathNotAbsolute => unreachable,
+    };
+
+    // Start scheduling, which passes control to user-space initial process
+    scheduler.start();
 }

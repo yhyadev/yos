@@ -17,7 +17,7 @@ pub const InterruptDescriptorTable = extern struct {
     }
 
     pub const Entry = packed struct(u128) {
-        pointer_low: u16 = 0,
+        address_low: u16 = 0,
         segment_selector: u16 = 0,
         ist: u3 = 1,
         reserved_1: u5 = 0,
@@ -25,7 +25,7 @@ pub const InterruptDescriptorTable = extern struct {
         reserved_2: u1 = 0,
         dpl: u2 = 0,
         present: u1 = 0,
-        pointer_high: u48 = 0,
+        address_high: u48 = 0,
         reserved_3: u32 = 0,
 
         comptime {
@@ -40,9 +40,9 @@ pub const InterruptDescriptorTable = extern struct {
             self.gate_type = 0b1111;
         }
 
-        pub fn setHandler(self: *Entry, pointer: u64) *Entry {
-            self.pointer_low = @truncate(pointer);
-            self.pointer_high = @truncate(pointer >> 16);
+        pub fn setHandler(self: *Entry, address: u64) *Entry {
+            self.address_low = @truncate(address);
+            self.address_high = @truncate(address >> 16);
 
             self.segment_selector = cpu.segments.cs();
 
@@ -54,13 +54,13 @@ pub const InterruptDescriptorTable = extern struct {
 
     pub const Register = packed struct(u80) {
         size: u16,
-        pointer: u64,
+        address: u64,
     };
 
     pub fn register(self: *InterruptDescriptorTable) Register {
         return Register{
             .size = @sizeOf(InterruptDescriptorTable) - 1,
-            .pointer = @intFromPtr(self),
+            .address = @intFromPtr(self),
         };
     }
 
@@ -69,12 +69,12 @@ pub const InterruptDescriptorTable = extern struct {
     }
 };
 
-pub const InterruptStackFrame = extern struct {
-    instruction_pointer: u64,
-    code_segment: u64,
-    cpu_flags: u64,
-    stack_pointer: u64,
-    stack_segment: u64,
+pub const InterruptContext = extern struct {
+    rip: u64,
+    cs: u64,
+    rflags: u64,
+    rsp: u64,
+    ss: u64,
 };
 
 pub fn init() void {
@@ -104,83 +104,82 @@ pub fn init() void {
     idt.load();
 }
 
-fn handleDivisionError(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleDivisionError(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("division error\n", .{});
 }
 
-fn handleDebug(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleDebug(_: *InterruptContext) callconv(.Interrupt) void {
     tty.print("debug\n", .{});
 }
 
-fn handleBreakpoint(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleBreakpoint(_: *InterruptContext) callconv(.Interrupt) void {
     tty.print("breakpoint\n", .{});
 }
 
-fn handleOverflow(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleOverflow(_: *InterruptContext) callconv(.Interrupt) void {
     tty.print("overflow\n", .{});
 }
 
-fn handleBoundRangeExceeded(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleBoundRangeExceeded(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("bound range exceeded\n", .{});
 }
 
-fn handleInvalidOpcode(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleInvalidOpcode(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("invalid opcode\n", .{});
 }
 
-fn handleDeviceNotAvailable(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleDeviceNotAvailable(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("device not available\n", .{});
 }
 
-fn handleDoubleFault(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleDoubleFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("double fault: {}\n", .{code});
 }
 
-fn handleSegmentationFault(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleSegmentationFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("segmentation fault: {}\n", .{code});
 }
 
-fn handleGeneralProtectionFault(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleGeneralProtectionFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("general protection fault: {}\n", .{code});
 }
 
-// This should not panic if we made a page allocator
-fn handlePageFault(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("page fault: {}\n", .{code});
+fn handlePageFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
+    std.debug.panic("page fault: {}", .{code});
 }
 
-fn handleX87FloatingPointException(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleX87FloatingPointException(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("x87 floating point exception\n", .{});
 }
 
-fn handleAlignmentCheck(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleAlignmentCheck(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("alignment check: {}\n", .{code});
 }
 
-fn handleMachineCheck(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleMachineCheck(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("machine check\n", .{});
 }
 
-fn handleSIMDFloatingPointException(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleSIMDFloatingPointException(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("simd floating point exception\n", .{});
 }
 
-fn handleVirtualizationException(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleVirtualizationException(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("virtualization exception\n", .{});
 }
 
-fn handleControlProtectionException(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleControlProtectionException(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("control protection exception: {}\n", .{code});
 }
 
-fn handleHypervisorInjectionException(_: *InterruptStackFrame) callconv(.Interrupt) void {
+fn handleHypervisorInjectionException(_: *InterruptContext) callconv(.Interrupt) void {
     std.debug.panic("hypervisor injection exception\n", .{});
 }
 
-fn handleVMMCommunicationException(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleVMMCommunicationException(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("vmm communication exception: {}\n", .{code});
 }
 
-fn handleSecurityException(_: *InterruptStackFrame, code: u64) callconv(.Interrupt) void {
+fn handleSecurityException(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
     std.debug.panic("security exception: {}\n", .{code});
 }

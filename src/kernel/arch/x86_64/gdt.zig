@@ -33,7 +33,7 @@ pub const TaskStateSegment = struct {
 pub var gdt: GlobalDescriptorTable = .{};
 
 pub const GlobalDescriptorTable = extern struct {
-    entries: [5]Entry = .{.{}} ** 5,
+    entries: [7]Entry = .{.{}} ** 7,
 
     pub const Entry = packed struct(u64) {
         limit_low: u16 = 0,
@@ -63,35 +63,46 @@ pub const GlobalDescriptorTable = extern struct {
         self.entries[2] = Entry.init(0, 0xFFFFF, 0x92, 0xC);
     }
 
+    pub fn addUserCodeSegment(self: *GlobalDescriptorTable) void {
+        self.entries[4] = Entry.init(0, 0xFFFFF, 0xFA, 0xA);
+    }
+
+    pub fn addUserDataSegment(self: *GlobalDescriptorTable) void {
+        self.entries[3] = Entry.init(0, 0xFFFFF, 0xF2, 0xC);
+    }
+
     pub fn addTaskStateSegment(self: *GlobalDescriptorTable) void {
-        self.entries[3] = @bitCast(((@sizeOf(TaskStateSegment.Entry) - 1) & 0xFFFF) | ((@intFromPtr(&tss) & 0xFFFFFF) << 16) | (0b1001 << 40) | (1 << 47) | (((@intFromPtr(&tss) >> 24) & 0xFF) << 56));
-        self.entries[4] = @bitCast(@intFromPtr(&tss) >> 32);
+        self.entries[5] = @bitCast(((@sizeOf(TaskStateSegment.Entry) - 1) & 0xFFFF) | ((@intFromPtr(&tss) & 0xFFFFFF) << 16) | (0b1001 << 40) | (1 << 47) | (((@intFromPtr(&tss) >> 24) & 0xFF) << 56));
+        self.entries[6] = @bitCast(@intFromPtr(&tss) >> 32);
     }
 
     pub const Register = packed struct(u80) {
         size: u16,
-        pointer: u64,
+        address: u64,
     };
 
     pub fn register(self: *GlobalDescriptorTable) Register {
         return Register{
             .size = @sizeOf(GlobalDescriptorTable) - 1,
-            .pointer = @intFromPtr(self),
+            .address = @intFromPtr(self),
         };
     }
 
     pub fn load(self: *GlobalDescriptorTable) void {
         cpu.segments.lgdt(&self.register());
         cpu.segments.reloadSegments();
-        cpu.segments.ltr(0x18);
+        cpu.segments.ltr(0x28);
     }
 };
 
 pub fn init() void {
+    tss.rsp0 = @intFromPtr(&backup_kernel_stack[backup_kernel_stack.len - 1]);
     tss.ist1 = @intFromPtr(&backup_kernel_stack[backup_kernel_stack.len - 1]);
 
     gdt.addKernelCodeSegment();
     gdt.addKernelDataSegment();
+    gdt.addUserCodeSegment();
+    gdt.addUserDataSegment();
     gdt.addTaskStateSegment();
 
     gdt.load();

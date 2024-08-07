@@ -13,5 +13,5 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
     // The tty should not in any way be the error, this must work
     tty.print("\npanic: {s}\n", .{message});
 
-    arch.cpu.hang();
+    arch.cpu.process.hang();
 }

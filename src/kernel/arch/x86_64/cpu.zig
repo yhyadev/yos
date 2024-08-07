@@ -5,10 +5,19 @@
 const GlobalDescriptorTable = @import("gdt.zig").GlobalDescriptorTable;
 
 const idt = @import("idt.zig");
-const InterruptStackFrame = idt.InterruptStackFrame;
+const InterruptContext = idt.InterruptContext;
 const InterruptDescriptorTable = idt.InterruptDescriptorTable;
 
 const lapic = @import("lapic.zig");
+
+pub const paging = struct {
+    pub inline fn invlpg(virtual_address: u64) void {
+        asm volatile ("invlpg (%[address])"
+            :
+            : [address] "{rax}" (virtual_address),
+        );
+    }
+};
 
 pub const registers = struct {
     pub const RFlags = packed struct(u64) {
@@ -34,6 +43,16 @@ pub const registers = struct {
         vip: u1,
         id: u1,
         reserved_5: u42,
+
+        /// Write the Flags Register
+        pub inline fn write(flags: RFlags) void {
+            asm volatile (
+                \\push %[result]
+                \\popfq
+                :
+                : [result] "{rax}" (flags),
+            );
+        }
 
         /// Read the Flags Register
         pub inline fn read() RFlags {
@@ -71,7 +90,7 @@ pub const registers = struct {
         }
 
         /// Read a Model Specific Register
-        pub inline fn read(register: Register) usize {
+        pub inline fn read(register: Register) u64 {
             var value_low: u32 = undefined;
             var value_high: u32 = undefined;
 
@@ -82,6 +101,38 @@ pub const registers = struct {
             );
 
             return (@as(usize, value_high) << 32) | value_low;
+        }
+    };
+
+    pub const Cr2 = struct {
+        pub inline fn write(value: u64) void {
+            asm volatile ("mov %[value], %cr2"
+                :
+                : [value] "{rax}" (value),
+                : "memory"
+            );
+        }
+
+        pub inline fn read() u64 {
+            return asm volatile ("mov %cr2, %[result]"
+                : [result] "={rax}" (-> u64),
+            );
+        }
+    };
+
+    pub const Cr3 = struct {
+        pub inline fn write(value: u64) void {
+            asm volatile ("mov %[value], %cr3"
+                :
+                : [value] "{rax}" (value),
+                : "memory"
+            );
+        }
+
+        pub inline fn read() u64 {
+            return asm volatile ("mov %cr3, %[result]"
+                : [result] "={rax}" (-> u64),
+            );
         }
     };
 };
@@ -115,17 +166,90 @@ pub const interrupts = struct {
         asm volatile ("hlt");
     }
 
-    /// Handle specific interrupt request (offset by 32)
-    pub inline fn handle(irq: u8, comptime handler: *const fn () void) void {
-        const runHandler = struct {
-            pub fn runHandler(_: *InterruptStackFrame) callconv(.Interrupt) void {
-                handler();
+    /// Offset by the amount of traps in the Interrupt Descriptor Table
+    pub inline fn offset(irq: u8) u8 {
+        return irq + 32;
+    }
 
-                end();
+    /// Handle specific interrupt request (the interrupt number is offsetted by `offset` function)
+    pub fn handle(irq: u8, comptime handler: *const fn (*process.Context) callconv(.C) void) void {
+        const lambda = struct {
+            pub fn runHandler() callconv(.Naked) void {
+                asm volatile (
+                    \\push %rbp
+                    \\push %rax
+                    \\push %rbx
+                    \\push %rcx
+                    \\push %rdx
+                    \\push %rdi
+                    \\push %rsi
+                    \\push %r8
+                    \\push %r9
+                    \\push %r10
+                    \\push %r11
+                    \\push %r12
+                    \\push %r13
+                    \\push %r14
+                    \\push %r15
+                    \\mov %ds, %rax
+                    \\push %rax
+                    \\mov %es, %rax
+                    \\push %rax
+                    \\mov %fs, %rax
+                    \\push %rax
+                    \\mov %gs, %rax
+                    \\push %rax
+                    \\mov $0x10, %ax
+                    \\mov %ax, %ds
+                    \\mov %ax, %es
+                    \\mov %ax, %fs
+                    \\mov %ax, %gs
+                    \\cld
+                );
+
+                asm volatile (
+                    \\mov %rsp, %rdi
+                );
+
+                asm volatile (
+                    \\call *%[handler]
+                    :
+                    : [handler] "{rax}" (handler),
+                );
+
+                asm volatile (
+                    \\pop %rax
+                    \\mov %rax, %gs
+                    \\pop %rax
+                    \\mov %rax, %fs
+                    \\pop %rax
+                    \\mov %rax, %es
+                    \\pop %rax
+                    \\mov %rax, %ds
+                    \\pop %r15
+                    \\pop %r14
+                    \\pop %r13
+                    \\pop %r12
+                    \\pop %r11
+                    \\pop %r10
+                    \\pop %r9
+                    \\pop %r8
+                    \\pop %rsi
+                    \\pop %rdi
+                    \\pop %rdx
+                    \\pop %rcx
+                    \\pop %rbx
+                    \\pop %rax
+                    \\pop %rbp
+                );
+
+                asm volatile (
+                    \\iretq
+                );
             }
-        }.runHandler;
+        };
 
-        idt.idt.entries[irq + 32].setHandler(@intFromPtr(&runHandler)).setInterruptGate();
+        idt.idt.entries[offset(irq)].setHandler(@intFromPtr(&lambda.runHandler)).setInterruptGate();
     }
 
     /// Must be called at the end of an interrupt request
@@ -202,9 +326,39 @@ pub const segments = struct {
     }
 };
 
-/// Wait endlessly
-pub inline fn hang() noreturn {
-    while (true) {
-        interrupts.hlt();
+pub const process = struct {
+    /// Context of the current process
+    pub const Context = extern struct {
+        gs: u64 = 0,
+        fs: u64 = 0,
+        es: u64 = 0,
+        ds: u64 = 0,
+        r15: u64 = 0,
+        r14: u64 = 0,
+        r13: u64 = 0,
+        r12: u64 = 0,
+        r11: u64 = 0,
+        r10: u64 = 0,
+        r9: u64 = 0,
+        r8: u64 = 0,
+        rsi: u64 = 0,
+        rdi: u64 = 0,
+        rdx: u64 = 0,
+        rcx: u64 = 0,
+        rbx: u64 = 0,
+        rax: u64 = 0,
+        rbp: u64 = 0,
+        rip: u64 = 0,
+        cs: u64 = 0,
+        rflags: u64 = 0,
+        rsp: u64 = 0,
+        ss: u64 = 0,
+    };
+
+    /// Wait endlessly
+    pub inline fn hang() noreturn {
+        while (true) {
+            interrupts.hlt();
+        }
     }
-}
+};
