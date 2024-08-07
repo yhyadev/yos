@@ -142,7 +142,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     try maybe_process.?.loadElf(elf_content);
 }
 
-/// Control the timer interrupt manually using the rescheduler ticks specified
+/// Control the timer interrupt manually using the reschedule ticks specified
 inline fn oneshot() void {
     if (arch.target.isX86()) {
         arch.lapic.getLapic().oneshot(arch.cpu.interrupts.offset(0), @truncate(reschedule_ticks));
