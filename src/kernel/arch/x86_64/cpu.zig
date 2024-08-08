@@ -10,11 +10,28 @@ const InterruptDescriptorTable = idt.InterruptDescriptorTable;
 
 const lapic = @import("lapic.zig");
 
+pub const core = struct {
+    pub const Info = packed struct {
+        kernel_stack: [*]u8,
+        user_stack: [*]u8,
+        id: u32,
+
+        pub fn write(value: *Info) void {
+            return registers.ModelSpecific.write(.kernel_gs_base, @intFromPtr(value));
+        }
+
+        pub fn read() *Info {
+            return @ptrFromInt(registers.ModelSpecific.read(.kernel_gs_base));
+        }
+    };
+};
+
 pub const paging = struct {
     pub inline fn invlpg(virtual_address: u64) void {
         asm volatile ("invlpg (%[address])"
             :
             : [address] "{rax}" (virtual_address),
+            : "memory"
         );
     }
 };
@@ -196,15 +213,9 @@ pub const interrupts = struct {
                     \\push %rax
                     \\mov %es, %rax
                     \\push %rax
-                    \\mov %fs, %rax
-                    \\push %rax
-                    \\mov %gs, %rax
-                    \\push %rax
                     \\mov $0x10, %ax
                     \\mov %ax, %ds
                     \\mov %ax, %es
-                    \\mov %ax, %fs
-                    \\mov %ax, %gs
                     \\cld
                 );
 
@@ -223,10 +234,6 @@ pub const interrupts = struct {
 
                 // Restore the context (which is potentially modified)
                 asm volatile (
-                    \\pop %rax
-                    \\mov %rax, %gs
-                    \\pop %rax
-                    \\mov %rax, %fs
                     \\pop %rax
                     \\mov %rax, %es
                     \\pop %rax
@@ -336,8 +343,6 @@ pub const segments = struct {
 pub const process = struct {
     /// Context of the current process
     pub const Context = extern struct {
-        gs: u64 = 0,
-        fs: u64 = 0,
         es: u64 = 0,
         ds: u64 = 0,
         r15: u64 = 0,

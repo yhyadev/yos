@@ -9,7 +9,7 @@ const vfs = @import("fs/vfs.zig");
 
 var backing_allocator: std.mem.Allocator = undefined;
 
-var maybe_process: ?*Process = null;
+pub var maybe_process: ?*Process = null;
 var processes: std.ArrayListUnmanaged(Process) = .{};
 var process_queue: std.fifo.LinearFifo(*Process, .Dynamic) = undefined;
 
@@ -142,6 +142,30 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     try maybe_process.?.loadElf(elf_content);
 }
 
+/// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
+pub fn kill(pid: u64) void {
+    if (maybe_process != null and maybe_process.?.id == pid) maybe_process = null;
+
+    for (processes.items, 0..) |*process, i| {
+        if (process.id == pid) {
+            process.arena.deinit();
+            _ = processes.swapRemove(i);
+
+            break;
+        }
+
+        for (process_queue.readableSlice(0), 0..) |waiting_process, j| {
+            if (process == waiting_process) {
+                for (0..j) |_| {
+                    process_queue.writeItem(process_queue.readItem().?) catch unreachable;
+                }
+
+                _ = process_queue.readItem().?;
+            }
+        }
+    }
+}
+
 /// Control the timer interrupt manually using the reschedule ticks specified
 inline fn oneshot() void {
     if (arch.target.isX86()) {
@@ -150,9 +174,12 @@ inline fn oneshot() void {
 }
 
 /// Reschedule processes, this assumes the timer gave control to the kernel
-fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!void {
-    // If there is no running process and the process queue is empty, don't do anything
-    if (maybe_process == null and process_queue.readableLength() == 0) return;
+pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!void {
+    // If there is no running process and the process queue is empty, don't let the
+    // processor complete processing user's code
+    if (maybe_process == null and process_queue.readableLength() == 0) {
+        while (true) {}
+    }
 
     // If there is a running process
     if (maybe_process) |process| {

@@ -44,7 +44,7 @@ var stage1_done = false;
 fn stage1() noreturn {
     arch.cpu.interrupts.disable();
 
-    const core_id = smp.getCoreId();
+    const core_id = arch.cpu.core.Info.read().id;
 
     if (core_id == 0) {
         // Initialize screen framebuffers

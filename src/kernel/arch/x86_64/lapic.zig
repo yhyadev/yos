@@ -37,11 +37,11 @@ pub const Lapic = struct {
 var lapics: [smp.max_core_count]Lapic = .{.{}} ** smp.max_core_count;
 
 pub fn getLapic() Lapic {
-    return lapics[smp.getCoreId()];
+    return lapics[cpu.core.Info.read().id];
 }
 
 pub fn init() void {
-    const core_id = smp.getCoreId();
+    const core_id = cpu.core.Info.read().id;
 
     lapics[core_id].base = paging.virtualFromPhysical(cpu.registers.ModelSpecific.read(.apic_base) & 0xFFFFF000);
 

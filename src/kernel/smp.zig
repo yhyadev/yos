@@ -4,14 +4,12 @@ const arch = @import("arch.zig");
 
 export var smp_request: limine.SmpRequest = .{};
 
-pub const max_core_count = 255;
+var core_info_buffer: [max_core_count]arch.cpu.core.Info = undefined;
+
 pub var core_count: u64 = undefined;
+pub const max_core_count = 255;
 
 pub var bootstrap_lapic_id: u32 = undefined;
-
-pub fn getCoreId() u64 {
-    return arch.cpu.registers.ModelSpecific.read(.kernel_gs_base);
-}
 
 pub fn init(comptime jumpPoint: *const fn () noreturn) noreturn {
     const maybe_smp_response = smp_request.response;
@@ -32,17 +30,21 @@ pub fn init(comptime jumpPoint: *const fn () noreturn) noreturn {
         @panic("the amount of cores exceeded the max");
     }
 
-    const startCore = struct {
+    const lambda = struct {
         fn startCore(raw_core_info: *limine.SmpInfo) callconv(.C) noreturn {
             arch.cpu.registers.ModelSpecific.write(.kernel_gs_base, raw_core_info.processor_id);
 
             jumpPoint();
         }
-    }.startCore;
+    };
 
     for (smp_response.cpus()) |raw_core_info| {
+        core_info_buffer[raw_core_info.processor_id].id = raw_core_info.processor_id;
+
+        arch.cpu.core.Info.write(&core_info_buffer[raw_core_info.processor_id]);
+
         if (raw_core_info.processor_id != 0) {
-            @atomicStore(@TypeOf(raw_core_info.goto_address), &raw_core_info.goto_address, &startCore, .monotonic);
+            @atomicStore(@TypeOf(raw_core_info.goto_address), &raw_core_info.goto_address, &lambda.startCore, .monotonic);
         }
     }
 

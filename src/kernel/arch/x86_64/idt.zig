@@ -144,8 +144,8 @@ fn handleGeneralProtectionFault(_: *InterruptContext, code: u64) callconv(.Inter
     std.debug.panic("general protection fault: {}\n", .{code});
 }
 
-fn handlePageFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("page fault: {}", .{code});
+fn handlePageFault(context: *InterruptContext, code: u64) callconv(.Interrupt) void {
+    std.debug.panic("page fault: {} {x} {}", .{ code, context.rip, cpu.registers.Cr2.read() });
 }
 
 fn handleX87FloatingPointException(_: *InterruptContext) callconv(.Interrupt) void {

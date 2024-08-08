@@ -89,6 +89,12 @@ pub fn build(b: *std.Build) !void {
 
             const user_apps_target = try getTarget(b, cpu_arch, .user);
 
+            const yos_module = b.createModule(.{
+                .root_source_file = b.path("src/user/yos.zig"),
+                .target = user_apps_target,
+                .optimize = .ReleaseSmall,
+            });
+
             var user_app_iterator = user_apps.iterate();
 
             while (try user_app_iterator.next()) |user_app| {
@@ -98,6 +104,8 @@ pub fn build(b: *std.Build) !void {
                     .target = user_apps_target,
                     .optimize = .ReleaseSmall,
                 });
+
+                user_app_exe.root_module.addImport("yos", yos_module);
 
                 switch (cpu_arch) {
                     .x86_64 => user_app_exe.setLinkerScript(b.path("src/user/arch/x86_64/linker.ld")),

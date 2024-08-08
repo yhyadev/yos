@@ -1,3 +1,5 @@
+const yos = @import("yos");
+
 export fn _start() noreturn {
-    while (true) {}
+    yos.exit(0);
 }
