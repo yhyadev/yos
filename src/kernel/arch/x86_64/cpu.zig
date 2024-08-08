@@ -16,11 +16,11 @@ pub const core = struct {
         user_stack: [*]u8,
         id: u32,
 
-        pub fn write(value: *Info) void {
+        pub inline fn write(value: *Info) void {
             return registers.ModelSpecific.write(.kernel_gs_base, @intFromPtr(value));
         }
 
-        pub fn read() *Info {
+        pub inline fn read() *Info {
             return @ptrFromInt(registers.ModelSpecific.read(.kernel_gs_base));
         }
     };

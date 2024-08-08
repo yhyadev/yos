@@ -8,9 +8,6 @@ pub var backup_kernel_stack: [16 * 4 * 1024]u8 = undefined;
 
 pub var tss: TaskStateSegment.Entry = .{};
 
-/// Task State Segment
-///
-/// Another fancy thing made by Intel
 pub const TaskStateSegment = struct {
     pub const Entry = packed struct(u832) {
         reserved_1: u32 = 0,
@@ -96,7 +93,6 @@ pub const GlobalDescriptorTable = extern struct {
 };
 
 pub fn init() void {
-    cpu.core.Info.read().kernel_stack = &backup_kernel_stack;
     tss.rsp0 = @intFromPtr(&backup_kernel_stack[backup_kernel_stack.len - 1]);
     tss.ist1 = @intFromPtr(&backup_kernel_stack[backup_kernel_stack.len - 1]);
 
