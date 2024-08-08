@@ -174,7 +174,8 @@ pub const interrupts = struct {
     /// Handle specific interrupt request (the interrupt number is offsetted by `offset` function)
     pub fn handle(irq: u8, comptime handler: *const fn (*process.Context) callconv(.C) void) void {
         const lambda = struct {
-            pub fn runHandler() callconv(.Naked) void {
+            pub fn interruptRequestEntry() callconv(.Naked) void {
+                // Save the context on stack to be restored later
                 asm volatile (
                     \\push %rbp
                     \\push %rax
@@ -207,16 +208,20 @@ pub const interrupts = struct {
                     \\cld
                 );
 
+                // Allow the handler to modify the context by passing a pointer to it
                 asm volatile (
                     \\mov %rsp, %rdi
                 );
 
+                // Now call the handler using the function pointer we have, this is possible with
+                // the derefrence operator in AT&T assembly syntax
                 asm volatile (
                     \\call *%[handler]
                     :
                     : [handler] "{rax}" (handler),
                 );
 
+                // Restore the context (which is potentially modified)
                 asm volatile (
                     \\pop %rax
                     \\mov %rax, %gs
@@ -243,13 +248,15 @@ pub const interrupts = struct {
                     \\pop %rbp
                 );
 
+                // Return to the code we interrupted
                 asm volatile (
                     \\iretq
                 );
             }
         };
 
-        idt.idt.entries[offset(irq)].setHandler(@intFromPtr(&lambda.runHandler)).setInterruptGate();
+        // I am shameful to use idt.idt but there is no other way
+        idt.idt.entries[offset(irq)].setHandler(@intFromPtr(&lambda.interruptRequestEntry)).setInterruptGate();
     }
 
     /// Must be called at the end of an interrupt request
