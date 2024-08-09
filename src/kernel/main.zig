@@ -81,7 +81,7 @@ fn stage1() noreturn {
         initrd.init();
 
         // Initialize tty device
-        devfs.mount(tty.device) catch |err| switch (err) {
+        devfs.mount(devfs.tty_device) catch |err| switch (err) {
             error.OutOfMemory => @panic("out of memory"),
         };
 

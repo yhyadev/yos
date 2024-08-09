@@ -4,6 +4,7 @@
 
 const std = @import("std");
 
+const tty = @import("../tty.zig");
 const vfs = @import("vfs.zig");
 
 var backing_allocator: std.mem.Allocator = undefined;
@@ -11,6 +12,20 @@ var backing_allocator: std.mem.Allocator = undefined;
 var root: *vfs.FileSystem.Node = undefined;
 
 var devices: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .{};
+
+pub const tty_device: vfs.FileSystem.Node = .{
+    .name = "tty",
+    .tag = .file,
+    .vtable = &.{
+        .write = struct {
+            fn write(_: *vfs.FileSystem.Node, _: usize, buffer: []const u8) usize {
+                tty.print("{s}", .{buffer});
+
+                return buffer.len;
+            }
+        }.write,
+    },
+};
 
 pub fn mount(device: vfs.FileSystem.Node) std.mem.Allocator.Error!void {
     try devices.append(backing_allocator, device);

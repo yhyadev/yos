@@ -44,20 +44,6 @@ pub const State = struct {
 pub const Writer = std.io.Writer(void, error{}, printImpl);
 pub const writer = Writer{ .context = {} };
 
-pub const device: vfs.FileSystem.Node = .{
-    .name = "tty",
-    .tag = .file,
-    .vtable = &.{
-        .write = struct {
-            fn write(_: *vfs.FileSystem.Node, _: usize, buffer: []const u8) usize {
-                print("{s}", .{buffer});
-
-                return buffer.len;
-            }
-        }.write,
-    },
-};
-
 pub fn clear() void {
     mutex.lock();
     defer mutex.unlock();
