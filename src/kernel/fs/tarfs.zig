@@ -17,15 +17,53 @@ const Directory = struct {
     children: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .{},
 
     const vtable: vfs.FileSystem.Node.VTable = .{
-        .readDir = &readDir,
-        .childCount = &childCount,
+        .readDir = struct {
+            fn readDir(node: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSystem.Node) void {
+                const directory: *Directory = @ptrCast(@alignCast(node.ctx));
+
+                for (offset..directory.children.items.len, 0..) |i, j| {
+                    if (j >= buffer.len) return;
+
+                    buffer[j] = &directory.children.items[i];
+                }
+            }
+        }.readDir,
+
+        .childCount = struct {
+            fn childCount(node: *vfs.FileSystem.Node) usize {
+                const directory: *Directory = @ptrCast(@alignCast(node.ctx));
+
+                return directory.children.items.len;
+            }
+        }.childCount,
     };
 };
 
 const File = struct {
     const vtable: vfs.FileSystem.Node.VTable = .{
-        .read = &read,
-        .fileSize = &fileSize,
+        .read = struct {
+            fn read(node: *vfs.FileSystem.Node, offset: u64, buffer: []u8) u64 {
+                const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
+
+                if (offset > content.len) return 0;
+
+                for (offset..content.len, 0..) |i, j| {
+                    if (j >= buffer.len) return buffer.len;
+
+                    buffer[j] = content.*[i];
+                }
+
+                return content.len - offset;
+            }
+        }.read,
+
+        .fileSize = struct {
+            fn fileSize(node: *vfs.FileSystem.Node) usize {
+                const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
+
+                return content.len;
+            }
+        }.fileSize,
     };
 };
 
@@ -117,42 +155,6 @@ fn createDirectory(cwd: []const u8, path: []const u8) CreateError!void {
         .ctx = child_directory,
         .vtable = &Directory.vtable,
     };
-}
-
-fn read(node: *vfs.FileSystem.Node, offset: u64, buffer: []u8) u64 {
-    const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
-
-    if (offset > content.len) return 0;
-
-    for (offset..content.len, 0..) |i, j| {
-        if (j >= buffer.len) return buffer.len;
-
-        buffer[j] = content.*[i];
-    }
-
-    return content.len - offset;
-}
-
-fn readDir(node: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSystem.Node) void {
-    const directory: *Directory = @ptrCast(@alignCast(node.ctx));
-
-    for (offset..directory.children.items.len, 0..) |i, j| {
-        if (j >= buffer.len) return;
-
-        buffer[j] = &directory.children.items[i];
-    }
-}
-
-fn fileSize(node: *vfs.FileSystem.Node) usize {
-    const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
-
-    return content.len;
-}
-
-fn childCount(node: *vfs.FileSystem.Node) usize {
-    const directory: *Directory = @ptrCast(@alignCast(node.ctx));
-
-    return directory.children.items.len;
 }
 
 pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {

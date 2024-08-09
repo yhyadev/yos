@@ -61,9 +61,7 @@ fn stage1() noreturn {
         const allocator = std.heap.page_allocator;
 
         // Initialize virtual file system
-        vfs.init(allocator) catch |err| switch (err) {
-            error.OutOfMemory => @panic("out of memory"),
-        };
+        vfs.init(allocator);
 
         // Initialize tar file system
         tarfs.init(allocator) catch |err| switch (err) {

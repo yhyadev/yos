@@ -8,9 +8,13 @@ var backing_allocator: std.mem.Allocator = undefined;
 
 var installed_file_systems: std.ArrayListUnmanaged(FileSystem) = .{};
 
-var root: *FileSystem.Node = undefined;
-
 var mount_points: std.StringHashMapUnmanaged(*FileSystem.Node) = .{};
+
+var root: FileSystem.Node = .{
+    .name = "",
+    .tag = .directory,
+    .vtable = &.{},
+};
 
 /// An interface representing a file system
 pub const FileSystem = struct {
@@ -145,7 +149,7 @@ pub const OpenAbsoluteError = error{PathNotAbsolute} || OpenError || std.mem.All
 pub fn openAbsolute(path: []const u8) OpenAbsoluteError!*FileSystem.Node {
     if (!std.fs.path.isAbsolute(path)) return error.PathNotAbsolute;
 
-    var node = root;
+    var node = &root;
 
     if (mount_points.get("/")) |mount_point| {
         node = mount_point;
@@ -195,14 +199,6 @@ pub fn openAbsolute(path: []const u8) OpenAbsoluteError!*FileSystem.Node {
     return node;
 }
 
-pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
+pub fn init(allocator: std.mem.Allocator) void {
     backing_allocator = allocator;
-
-    root = try backing_allocator.create(FileSystem.Node);
-
-    root.* = .{
-        .name = "",
-        .tag = .directory,
-        .vtable = &.{},
-    };
 }
