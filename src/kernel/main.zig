@@ -33,8 +33,14 @@ pub export fn _start() noreturn {
         arch.cpu.process.hang();
     }
 
+    // Initialize screen framebuffers
+    screen.init();
+
+    // Initialize teletype emulation
+    tty.init();
+
     // Initialize symmetric multiprocessing and go to the first stage
-    smp.init(stage1);
+    smp.init(&stage1);
 }
 
 /// Did the first core finish first stage?
@@ -47,12 +53,6 @@ fn stage1() noreturn {
     const core_id = arch.cpu.core.Info.read().id;
 
     if (core_id == 0) {
-        // Initialize screen framebuffers
-        screen.init();
-
-        // Initialize teletype emulation
-        tty.init();
-
         // Initialize memory allocation
         memory.init();
 
@@ -99,15 +99,21 @@ fn stage1() noreturn {
 fn stage2() noreturn {
     arch.cpu.interrupts.enable();
 
-    // Load the initial process
-    scheduler.setInitialProcess("/usr/bin/init") catch |err| switch (err) {
-        error.OutOfMemory => @panic("out of memory"),
-        error.NotFound => @panic("the initial process file is not found in initial ramdisk"),
-        error.NotDirectory => @panic("the initial process path is incorrect, caused by a component that is not directory"),
-        error.BadElf => @panic("the initial process file is an incorrect elf"),
-        error.PathNotAbsolute => unreachable,
-    };
+    const core_id = arch.cpu.core.Info.read().id;
 
-    // Start scheduling, which passes control to user-space initial process
-    scheduler.start();
+    if (core_id == 0) {
+        // Load the initial process
+        scheduler.setInitialProcess("/usr/bin/init") catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+            error.NotFound => @panic("the initial process file is not found in initial ramdisk"),
+            error.NotDirectory => @panic("the initial process path is incorrect, caused by a component that is not directory"),
+            error.BadElf => @panic("the initial process file is an incorrect elf"),
+            error.PathNotAbsolute => unreachable,
+        };
+
+        // Start scheduling, which passes control to user-space initial process
+        scheduler.start();
+    }
+
+    arch.cpu.process.hang();
 }

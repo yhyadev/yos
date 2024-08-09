@@ -12,9 +12,9 @@ const lapic = @import("lapic.zig");
 
 pub const core = struct {
     pub const Info = packed struct {
-        kernel_stack: [*]u8,
-        user_stack: [*]u8,
-        id: u32,
+        kernel_stack: [*]u8 = undefined,
+        user_stack: [*]u8 = undefined,
+        id: u32 = 0,
 
         pub inline fn write(value: *Info) void {
             return registers.ModelSpecific.write(.kernel_gs_base, @intFromPtr(value));
