@@ -1,6 +1,10 @@
 pub const syscall = struct {
     pub const Code = enum(usize) {
         exit,
+        write,
+        read,
+        open,
+        close,
     };
 
     pub fn syscall0(code: Code) usize {

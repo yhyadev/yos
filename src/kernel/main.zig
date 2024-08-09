@@ -20,6 +20,7 @@ const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const smp = @import("smp.zig");
 const tty = @import("tty.zig");
+const devfs = @import("fs/devfs.zig");
 const tarfs = @import("fs/tarfs.zig");
 const vfs = @import("fs/vfs.zig");
 const ps2 = @import("drivers/keyboard/ps2.zig");
@@ -69,8 +70,20 @@ fn stage1() noreturn {
             error.OutOfMemory => @panic("out of memory"),
         };
 
+        // Initialize device file system
+        devfs.init(allocator) catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+
+            else => unreachable,
+        };
+
         // Initialize the initial ramdisk
         initrd.init();
+
+        // Initialize tty device
+        devfs.mount(tty.device) catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+        };
 
         // Initialize scheduler
         scheduler.init(allocator);

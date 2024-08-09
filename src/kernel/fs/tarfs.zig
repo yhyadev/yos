@@ -119,7 +119,7 @@ fn createDirectory(cwd: []const u8, path: []const u8) CreateError!void {
     };
 }
 
-pub fn read(node: *vfs.FileSystem.Node, offset: u64, buffer: []u8) u64 {
+fn read(node: *vfs.FileSystem.Node, offset: u64, buffer: []u8) u64 {
     const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
 
     if (offset > content.len) return 0;
@@ -133,7 +133,7 @@ pub fn read(node: *vfs.FileSystem.Node, offset: u64, buffer: []u8) u64 {
     return content.len - offset;
 }
 
-pub fn readDir(node: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSystem.Node) void {
+fn readDir(node: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSystem.Node) void {
     const directory: *Directory = @ptrCast(@alignCast(node.ctx));
 
     for (offset..directory.children.items.len, 0..) |i, j| {
@@ -143,13 +143,13 @@ pub fn readDir(node: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSyste
     }
 }
 
-pub fn fileSize(node: *vfs.FileSystem.Node) usize {
+fn fileSize(node: *vfs.FileSystem.Node) usize {
     const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
 
     return content.len;
 }
 
-pub fn childCount(node: *vfs.FileSystem.Node) usize {
+fn childCount(node: *vfs.FileSystem.Node) usize {
     const directory: *Directory = @ptrCast(@alignCast(node.ctx));
 
     return directory.children.items.len;

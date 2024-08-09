@@ -25,6 +25,7 @@ const Process = struct {
     context: arch.cpu.process.Context,
     page_table: *arch.paging.PageTable,
     arena: std.heap.ArenaAllocator,
+    files: std.ArrayListUnmanaged(*vfs.FileSystem.Node) = .{},
 
     /// Load the elf segments and user stack, this modifies the context respectively
     fn loadElf(self: *Process, elf_content: []const u8) !void {
@@ -99,6 +100,36 @@ const Process = struct {
         }
     }
 
+    /// Write into file using its index in the open files list
+    pub fn writeFile(self: *Process, fd: usize, offset: usize, buffer: []const u8) usize {
+        if (self.files.items.len <= fd) return 0;
+
+        return self.files.items[fd].write(offset, buffer);
+    }
+
+    /// Read from file using its index in the open files list
+    pub fn readFile(self: *Process, fd: usize, offset: usize, buffer: []u8) usize {
+        if (self.files.items.len <= fd) return 0;
+
+        return self.files.items[fd].read(offset, buffer);
+    }
+
+    /// Open a file and return its index in the open files list
+    pub fn openFile(self: *Process, path: []const u8) !usize {
+        const file = try vfs.openAbsolute(path);
+
+        try self.files.append(backing_allocator, file);
+
+        return self.files.items.len - 1;
+    }
+
+    /// Close a file using its index in the open files list
+    pub fn closeFile(self: *Process, fd: usize) !void {
+        if (self.files.items.len <= fd) return error.NotFound;
+
+        self.files.items[fd].close();
+    }
+
     /// Pass the control to underlying code that the process hold
     pub fn run(self: Process) noreturn {
         arch.paging.setActivePageTable(self.page_table);
@@ -132,14 +163,27 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 
     maybe_process.?.page_table = try arch.paging.allocPageTable(scoped_allocator);
 
-    const elf_file = try vfs.openAbsolute(elf_file_path);
-    defer elf_file.close();
+    {
+        const elf_file = try vfs.openAbsolute(elf_file_path);
+        defer elf_file.close();
 
-    const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
+        const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
 
-    _ = elf_file.read(0, elf_content);
+        _ = elf_file.read(0, elf_content);
 
-    try maybe_process.?.loadElf(elf_content);
+        try maybe_process.?.loadElf(elf_content);
+    }
+
+    {
+        const tty_device = vfs.openAbsolute("/dev/tty") catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            error.NotFound => @panic("tty device is not found"),
+
+            else => unreachable,
+        };
+
+        try maybe_process.?.files.appendNTimes(scoped_allocator, tty_device, 3);
+    }
 }
 
 /// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
@@ -148,7 +192,12 @@ pub fn kill(pid: u64) void {
 
     for (processes.items, 0..) |*process, i| {
         if (process.id == pid) {
+            for (process.files.items) |file| {
+                file.close();
+            }
+
             process.arena.deinit();
+
             _ = processes.swapRemove(i);
 
             break;

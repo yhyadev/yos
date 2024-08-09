@@ -6,6 +6,7 @@ const std = @import("std");
 
 const arch = @import("arch.zig");
 const screen = @import("screen.zig");
+const vfs = @import("fs/vfs.zig");
 
 const SpinLock = @import("locks/SpinLock.zig");
 
@@ -40,6 +41,23 @@ pub const State = struct {
     y: usize = 0,
 };
 
+pub const Writer = std.io.Writer(void, error{}, printImpl);
+pub const writer = Writer{ .context = {} };
+
+pub const device: vfs.FileSystem.Node = .{
+    .name = "tty",
+    .tag = .file,
+    .vtable = &.{
+        .write = struct {
+            fn write(_: *vfs.FileSystem.Node, _: usize, buffer: []const u8) usize {
+                print("{s}", .{buffer});
+
+                return buffer.len;
+            }
+        }.write,
+    },
+};
+
 pub fn init() void {
     state.width = @divFloor(screen.framebuffer.width, font.text_width);
     state.height = @divFloor(screen.framebuffer.height, font.text_height);
@@ -61,9 +79,6 @@ pub fn clear() void {
     state.y = 0;
 }
 
-pub const Writer = std.io.Writer(void, error{}, printImpl);
-pub const writer = Writer{ .context = {} };
-
 pub fn print(comptime format: []const u8, arguments: anytype) void {
     mutex.lock();
     defer mutex.unlock();
@@ -71,9 +86,7 @@ pub fn print(comptime format: []const u8, arguments: anytype) void {
     std.fmt.format(writer, format, arguments) catch arch.hang();
 }
 
-fn printImpl(ctx: void, bytes: []const u8) !usize {
-    _ = ctx;
-
+fn printImpl(_: void, bytes: []const u8) !usize {
     for (bytes) |byte| {
         printByte(byte);
     }

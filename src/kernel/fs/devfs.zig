@@ -1,0 +1,48 @@
+//! Device File System
+//!
+//! A file system but not file system, just a wrapper so you can implement a device read/write as a file
+
+const std = @import("std");
+
+const vfs = @import("vfs.zig");
+
+var backing_allocator: std.mem.Allocator = undefined;
+
+var root: *vfs.FileSystem.Node = undefined;
+
+var devices: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .{};
+
+pub fn mount(device: vfs.FileSystem.Node) std.mem.Allocator.Error!void {
+    try devices.append(backing_allocator, device);
+}
+
+fn readDir(_: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSystem.Node) void {
+    for (offset..devices.items.len, 0..) |i, j| {
+        if (j >= buffer.len) return;
+
+        buffer[j] = &devices.items[i];
+    }
+}
+
+fn childCount(_: *vfs.FileSystem.Node) usize {
+    return devices.items.len;
+}
+
+pub fn init(allocator: std.mem.Allocator) vfs.FileSystem.Node.MountError!void {
+    backing_allocator = allocator;
+
+    try vfs.installFileSystem(.{ .name = "devfs" });
+
+    root = try backing_allocator.create(vfs.FileSystem.Node);
+
+    root.* = .{
+        .name = "dev",
+        .tag = .directory,
+        .vtable = &.{
+            .readDir = &readDir,
+            .childCount = &childCount,
+        },
+    };
+
+    try root.mount("/dev");
+}
