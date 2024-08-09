@@ -30,11 +30,11 @@ pub fn exit(status: u8) noreturn {
 }
 
 pub fn write(fd: usize, offset: usize, buffer: []const u8) usize {
-    return syscall4(.write, offset, fd, @intFromPtr(buffer.ptr), buffer.len);
+    return syscall4(.write, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
 }
 
 pub fn read(fd: usize, offset: usize, buffer: []u8) usize {
-    return syscall4(.read, offset, fd, @intFromPtr(buffer.ptr), buffer.len);
+    return syscall4(.read, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
 }
 
 pub fn open(path: []const u8) isize {

@@ -31,19 +31,23 @@ pub fn open(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize
 
     const process = scheduler.maybe_process.?;
 
-    context.rax = process.openFile(path) catch |err| switch (err) {
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = process.openFile(path) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
 
-        else => @bitCast(-@as(i64, @intCast(@intFromError(err)))),
+        else => -@as(isize, @intCast(@intFromError(err))),
     };
 }
 
 pub fn close(context: *arch.cpu.process.Context, fd: usize) void {
     const process = scheduler.maybe_process.?;
 
-    context.rax = 0;
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = 0;
 
     process.closeFile(fd) catch |err| {
-        context.rax = @bitCast(-@as(i64, @intCast(@intFromError(err))));
+        result.* = -@as(isize, @intCast(@intFromError(err)));
     };
 }

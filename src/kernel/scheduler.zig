@@ -102,25 +102,25 @@ const Process = struct {
 
     /// Write into file using its index in the open files list
     pub fn writeFile(self: *Process, fd: usize, offset: usize, buffer: []const u8) usize {
-        if (self.files.items.len <= fd) return 0;
+        if (fd > self.files.items.len) return 0;
 
         return self.files.items[fd].write(offset, buffer);
     }
 
     /// Read from file using its index in the open files list
     pub fn readFile(self: *Process, fd: usize, offset: usize, buffer: []u8) usize {
-        if (self.files.items.len <= fd) return 0;
+        if (fd > self.files.items.len) return 0;
 
         return self.files.items[fd].read(offset, buffer);
     }
 
     /// Open a file and return its index in the open files list
-    pub fn openFile(self: *Process, path: []const u8) !usize {
+    pub fn openFile(self: *Process, path: []const u8) !isize {
         const file = try vfs.openAbsolute(path);
 
         try self.files.append(backing_allocator, file);
 
-        return self.files.items.len - 1;
+        return @intCast(self.files.items.len - 1);
     }
 
     /// Close a file using its index in the open files list
