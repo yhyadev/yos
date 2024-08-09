@@ -3,15 +3,6 @@ const std = @import("std");
 const cpu = @import("cpu.zig");
 const gdt = @import("gdt.zig");
 
-pub fn init() void {
-    cpu.registers.ModelSpecific.write(.star, (0x8 << 32) | ((0x18 - 0x8) << 48));
-    cpu.registers.ModelSpecific.write(.lstar, @intFromPtr(&syscallEntry));
-    cpu.registers.ModelSpecific.write(.efer, cpu.registers.ModelSpecific.read(.efer) | 1);
-    cpu.registers.ModelSpecific.write(.sf_mask, 0b1111110111111111010101);
-
-    cpu.core.Info.read().kernel_stack = &gdt.backup_kernel_stack;
-}
-
 fn syscallEntry() callconv(.Naked) void {
     cpu.interrupts.disable();
 
@@ -142,4 +133,13 @@ fn syscallHandler(context: *cpu.process.Context) callconv(.C) void {
 
         else => {},
     }
+}
+
+pub fn init() void {
+    cpu.registers.ModelSpecific.write(.star, (0x8 << 32) | ((0x18 - 0x8) << 48));
+    cpu.registers.ModelSpecific.write(.lstar, @intFromPtr(&syscallEntry));
+    cpu.registers.ModelSpecific.write(.efer, cpu.registers.ModelSpecific.read(.efer) | 1);
+    cpu.registers.ModelSpecific.write(.sf_mask, 0b1111110111111111010101);
+
+    cpu.core.Info.read().kernel_stack = &gdt.backup_kernel_stack;
 }

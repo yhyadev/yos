@@ -58,13 +58,6 @@ pub const device: vfs.FileSystem.Node = .{
     },
 };
 
-pub fn init() void {
-    state.width = @divFloor(screen.framebuffer.width, font.text_width);
-    state.height = @divFloor(screen.framebuffer.height, font.text_height);
-
-    clear();
-}
-
 pub fn clear() void {
     mutex.lock();
     defer mutex.unlock();
@@ -144,4 +137,11 @@ fn printFontBytes(font_bytes: []const u8) void {
             }
         }
     }
+}
+
+pub fn init() void {
+    state.width = @divFloor(screen.framebuffer.width, font.text_width);
+    state.height = @divFloor(screen.framebuffer.height, font.text_height);
+
+    clear();
 }

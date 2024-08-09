@@ -44,6 +44,46 @@ fn wait() void {
     cpu.io.outb(0x80, 0);
 }
 
+pub fn disable() void {
+    cpu.io.outb(master_data_port, 0xff);
+    cpu.io.outb(slave_data_port, 0xff);
+}
+
+pub fn end(irq: u8) void {
+    if (irq >= 8) cpu.io.outb(slave_command_port, eoi);
+    cpu.io.outb(master_command_port, eoi);
+}
+
+pub fn setMask(irq: u8) void {
+    var port: u16 = undefined;
+    var modified_irq: u3 = undefined;
+
+    if (irq < 8) {
+        port = master_data_port;
+        modified_irq = @truncate(irq);
+    } else {
+        port = master_command_port;
+        modified_irq = @truncate(irq - 8);
+    }
+
+    cpu.io.outb(port, cpu.io.inb(port) | (@as(u8, 1) << modified_irq));
+}
+
+pub fn clearMask(irq: u8) void {
+    var port: u16 = undefined;
+    var modified_irq: u3 = undefined;
+
+    if (irq < 8) {
+        port = master_data_port;
+        modified_irq = @truncate(irq);
+    } else {
+        port = master_command_port;
+        modified_irq = @truncate(irq - 8);
+    }
+
+    cpu.io.outb(port, cpu.io.inb(port) & ~(@as(u8, 1) << modified_irq));
+}
+
 pub fn init() void {
     clearMask(timer_interrupt);
     clearMask(keyboard_interrupt);
@@ -83,44 +123,4 @@ pub fn init() void {
 
     cpu.io.outb(master_data_port, master_data_mask);
     cpu.io.outb(slave_data_port, slave_data_mask);
-}
-
-pub fn disable() void {
-    cpu.io.outb(master_data_port, 0xff);
-    cpu.io.outb(slave_data_port, 0xff);
-}
-
-pub fn notifyEndOfInterrupt(irq: u8) void {
-    if (irq >= 8) cpu.io.outb(slave_command_port, eoi);
-    cpu.io.outb(master_command_port, eoi);
-}
-
-pub fn setMask(irq: u8) void {
-    var port: u16 = undefined;
-    var modified_irq: u3 = undefined;
-
-    if (irq < 8) {
-        port = master_data_port;
-        modified_irq = @truncate(irq);
-    } else {
-        port = master_command_port;
-        modified_irq = @truncate(irq - 8);
-    }
-
-    cpu.io.outb(port, cpu.io.inb(port) | (@as(u8, 1) << modified_irq));
-}
-
-pub fn clearMask(irq: u8) void {
-    var port: u16 = undefined;
-    var modified_irq: u3 = undefined;
-
-    if (irq < 8) {
-        port = master_data_port;
-        modified_irq = @truncate(irq);
-    } else {
-        port = master_command_port;
-        modified_irq = @truncate(irq - 8);
-    }
-
-    cpu.io.outb(port, cpu.io.inb(port) & ~(@as(u8, 1) << modified_irq));
 }
