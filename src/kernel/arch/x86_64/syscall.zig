@@ -124,6 +124,7 @@ fn syscallHandler(context: *cpu.process.Context) callconv(.C) void {
             const syscall_function = @field(syscall_functions, syscall_function_types.Struct.decls[code].name);
             const syscall_function_type = @typeInfo(@TypeOf(syscall_function));
 
+            comptime std.debug.assert(syscall_function_type == .Fn);
             comptime std.debug.assert(syscall_function_type.Fn.params.len <= 6);
 
             switch (syscall_function_type.Fn.params.len - 1) {
