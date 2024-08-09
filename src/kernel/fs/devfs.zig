@@ -11,7 +11,7 @@ var backing_allocator: std.mem.Allocator = undefined;
 
 var root: *vfs.FileSystem.Node = undefined;
 
-var devices: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .{};
+pub var devices: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .{};
 
 pub const tty_device: vfs.FileSystem.Node = .{
     .name = "tty",
@@ -26,10 +26,6 @@ pub const tty_device: vfs.FileSystem.Node = .{
         }.write,
     },
 };
-
-pub fn mount(device: vfs.FileSystem.Node) std.mem.Allocator.Error!void {
-    try devices.append(backing_allocator, device);
-}
 
 fn readDir(_: *vfs.FileSystem.Node, offset: u64, buffer: []*vfs.FileSystem.Node) void {
     for (offset..devices.items.len, 0..) |i, j| {
@@ -60,4 +56,6 @@ pub fn init(allocator: std.mem.Allocator) vfs.FileSystem.Node.MountError!void {
     };
 
     try root.mount("/dev");
+
+    try devices.append(backing_allocator, tty_device);
 }

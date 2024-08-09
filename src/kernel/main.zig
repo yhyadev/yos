@@ -80,11 +80,6 @@ fn stage1() noreturn {
         // Initialize the initial ramdisk
         initrd.init();
 
-        // Initialize tty device
-        devfs.mount(devfs.tty_device) catch |err| switch (err) {
-            error.OutOfMemory => @panic("out of memory"),
-        };
-
         // Initialize scheduler
         scheduler.init(allocator);
 
