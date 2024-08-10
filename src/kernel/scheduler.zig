@@ -116,7 +116,10 @@ const Process = struct {
 
     /// Open a file and return its index in the open files list
     pub fn openFile(self: *Process, path: []const u8) !isize {
-        const file = try vfs.openAbsolute(path);
+        // TODO: Currently working dirctory should be used here
+        const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ "/", path });
+
+        const file = try vfs.openAbsolute(resolved_path);
 
         try self.files.append(backing_allocator, file);
 

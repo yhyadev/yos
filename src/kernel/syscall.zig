@@ -35,8 +35,10 @@ pub fn open(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize
 
     result.* = process.openFile(path) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
-
-        else => -@as(isize, @intCast(@intFromError(err))),
+        error.NotFound => -1,
+        error.NotDirectory => -2,
+        // May be caused if the currently working directory is not absolute (which is just / for now)
+        error.PathNotAbsolute => -3,
     };
 }
 
@@ -47,7 +49,7 @@ pub fn close(context: *arch.cpu.process.Context, fd: usize) void {
 
     result.* = 0;
 
-    process.closeFile(fd) catch |err| {
-        result.* = -@as(isize, @intCast(@intFromError(err)));
+    process.closeFile(fd) catch |err| switch (err) {
+        error.NotFound => result.* = -1,
     };
 }
