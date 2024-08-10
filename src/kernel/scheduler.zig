@@ -197,7 +197,7 @@ pub fn kill(pid: usize) void {
     }
 
     // Now we search for it in the list because we must free the resources
-    for (processes.items, 0..) |*process, i| {
+    for (processes.items) |*process| {
         if (process.id == pid) {
             for (process.files.items) |file| {
                 file.close();
@@ -205,23 +205,21 @@ pub fn kill(pid: usize) void {
 
             process.arena.deinit();
 
-            _ = processes.swapRemove(i);
+            // It may be in the process queue, to forbid it from returning back as a running process
+            // we have to remove it
+            for (process_queue.readableSlice(0), 0..) |waiting_process, i| {
+                if (process == waiting_process) {
+                    // We have to push it into the top of the queue
+                    for (0..i) |_| {
+                        process_queue.writeItem(process_queue.readItem().?) catch unreachable;
+                    }
+
+                    // Now pop it from the queue
+                    _ = process_queue.readItem().?;
+                }
+            }
 
             break;
-        }
-
-        // It may be in the process queue, to forbid it from returning back as a running process
-        // we have to remove it
-        for (process_queue.readableSlice(0), 0..) |waiting_process, j| {
-            if (process == waiting_process) {
-                // We have to push it into the top of the queue
-                for (0..j) |_| {
-                    process_queue.writeItem(process_queue.readItem().?) catch unreachable;
-                }
-
-                // Now pop it from the queue
-                _ = process_queue.readItem().?;
-            }
         }
     }
 }
