@@ -13,7 +13,7 @@ pub var maybe_process: ?*Process = null;
 var processes: std.ArrayListUnmanaged(Process) = .{};
 var process_queue: std.fifo.LinearFifo(*Process, .Dynamic) = undefined;
 
-const reschedule_ticks = 0x1000000;
+const reschedule_ticks = 0x10000;
 
 const user_stack_page_count = 16;
 const user_stack_virtual_address = 0x10002000;
@@ -235,11 +235,12 @@ pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!vo
 
     // If there is a running process
     if (maybe_process) |process| {
-        // Update the context
-        process.context = context.*;
-
         // If the process queue is not empty, add the currently running process into the queue
         if (process_queue.readableLength() > 0) {
+            // Update the context
+            process.context = context.*;
+
+            // Put the process into the queue
             try process_queue.writeItem(process);
         }
     }
