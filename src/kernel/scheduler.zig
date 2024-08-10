@@ -21,7 +21,7 @@ const user_stack_top = user_stack_virtual_address + user_stack_page_count * std.
 
 /// A currently running or idle process
 const Process = struct {
-    id: u64,
+    id: usize,
     context: arch.cpu.process.Context,
     page_table: *arch.paging.PageTable,
     arena: std.heap.ArenaAllocator,

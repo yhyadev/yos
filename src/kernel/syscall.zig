@@ -53,3 +53,9 @@ pub fn close(context: *arch.cpu.process.Context, fd: usize) void {
         error.NotFound => result.* = -1,
     };
 }
+
+pub fn getpid(context: *arch.cpu.process.Context) void {
+    const process = scheduler.maybe_process.?;
+
+    context.rax = process.id;
+}

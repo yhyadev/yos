@@ -44,3 +44,7 @@ pub fn open(path: []const u8) isize {
 pub fn close(fd: usize) isize {
     return @bitCast(syscall2(.close, fd));
 }
+
+pub fn getpid() usize {
+    return syscall0(.getpid);
+}
