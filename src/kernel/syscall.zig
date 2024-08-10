@@ -5,9 +5,7 @@ const tty = @import("tty.zig");
 pub fn exit(context: *arch.cpu.process.Context, _: usize) void {
     const process = scheduler.maybe_process.?;
 
-    scheduler.kill(process.id);
-
-    scheduler.reschedule(context) catch @panic("out of memory");
+    kill(context, process.id);
 }
 
 pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
@@ -58,4 +56,10 @@ pub fn getpid(context: *arch.cpu.process.Context) void {
     const process = scheduler.maybe_process.?;
 
     context.rax = process.id;
+}
+
+pub fn kill(context: *arch.cpu.process.Context, pid: usize) void {
+    scheduler.kill(pid);
+
+    scheduler.reschedule(context) catch @panic("out of memory");
 }

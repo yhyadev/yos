@@ -190,7 +190,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 }
 
 /// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
-pub fn kill(pid: u64) void {
+pub fn kill(pid: usize) void {
     if (maybe_process != null and maybe_process.?.id == pid) maybe_process = null;
 
     for (processes.items, 0..) |*process, i| {

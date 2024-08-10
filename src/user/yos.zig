@@ -48,3 +48,7 @@ pub fn close(fd: usize) isize {
 pub fn getpid() usize {
     return syscall0(.getpid);
 }
+
+pub fn kill(pid: usize) void {
+    _ = syscall1(.kill, pid);
+}

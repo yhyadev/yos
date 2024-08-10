@@ -13,7 +13,7 @@ export var memory_map_request: limine.MemoryMapRequest = .{};
 export var hhdm_request: limine.HhdmRequest = .{};
 
 var memory_region: []u8 = undefined;
-pub var hhdm_offset: u64 = undefined;
+pub var hhdm_offset: usize = undefined;
 
 pub const PageAllocator = struct {
     var initialized = false;
@@ -22,7 +22,7 @@ pub const PageAllocator = struct {
 
     var page_bitmap: std.DynamicBitSetUnmanaged = .{};
 
-    var total_page_count: u64 = 0;
+    var total_page_count: usize = 0;
 
     pub const vtable: std.mem.Allocator.VTable = .{
         .alloc = alloc,

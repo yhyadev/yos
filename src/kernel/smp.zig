@@ -6,7 +6,7 @@ export var smp_request: limine.SmpRequest = .{};
 
 var core_info_buffer: [max_core_count]arch.cpu.core.Info = undefined;
 
-pub var core_count: u64 = undefined;
+pub var core_count: usize = undefined;
 pub const max_core_count = 255;
 
 pub var bootstrap_lapic_id: u32 = undefined;
