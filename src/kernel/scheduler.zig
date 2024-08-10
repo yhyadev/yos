@@ -191,8 +191,12 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 
 /// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
 pub fn kill(pid: usize) void {
-    if (maybe_process != null and maybe_process.?.id == pid) maybe_process = null;
+    // Make sure if it is the running process to stop it
+    if (maybe_process != null and maybe_process.?.id == pid) {
+        maybe_process = null;
+    }
 
+    // Now we search for it in the list because we must free the resources
     for (processes.items, 0..) |*process, i| {
         if (process.id == pid) {
             for (process.files.items) |file| {
@@ -206,12 +210,16 @@ pub fn kill(pid: usize) void {
             break;
         }
 
+        // It may be in the process queue, to forbid it from returning back as a running process
+        // we have to remove it
         for (process_queue.readableSlice(0), 0..) |waiting_process, j| {
             if (process == waiting_process) {
+                // We have to push it into the top of the queue
                 for (0..j) |_| {
                     process_queue.writeItem(process_queue.readItem().?) catch unreachable;
                 }
 
+                // Now pop it from the queue
                 _ = process_queue.readItem().?;
             }
         }
@@ -233,19 +241,16 @@ pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!vo
         while (true) {}
     }
 
-    // If there is a running process
+    // Only if there is a running process, we need to update it before switch contexts
     if (maybe_process) |process| {
-        // If the process queue is not empty, add the currently running process into the queue
         if (process_queue.readableLength() > 0) {
-            // Update the context
             process.context = context.*;
 
-            // Put the process into the queue
             try process_queue.writeItem(process);
         }
     }
 
-    // If there is a process in the queue, do a context switch and set the currently running process
+    // If there is a process in the queue, switch contexts and set it as the currently running process
     if (process_queue.readItem()) |process| {
         maybe_process = process;
 
@@ -256,7 +261,7 @@ pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!vo
     arch.paging.setActivePageTable(maybe_process.?.page_table);
 }
 
-/// Called when the Timer gives back control to the kernel
+/// Called when the timer gives back control to the kernel
 fn interrupt(context: *arch.cpu.process.Context) callconv(.C) void {
     defer arch.cpu.interrupts.end();
 
