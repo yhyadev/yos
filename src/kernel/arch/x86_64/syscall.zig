@@ -89,6 +89,7 @@ fn syscallEntry() callconv(.Naked) void {
         \\pop %rbx
         \\pop %rax
         \\pop %rbp
+        \\add $0x28, %rsp
     );
 
     // Return back to user stack
@@ -141,5 +142,5 @@ pub fn init() void {
     cpu.registers.ModelSpecific.write(.efer, cpu.registers.ModelSpecific.read(.efer) | 1);
     cpu.registers.ModelSpecific.write(.sf_mask, 0b1111110111111111010101);
 
-    cpu.core.Info.read().kernel_stack = &gdt.backup_kernel_stack;
+    cpu.core.Info.read().kernel_stack = @intFromPtr(&gdt.backup_kernel_stack) + (gdt.backup_kernel_stack.len - 1);
 }

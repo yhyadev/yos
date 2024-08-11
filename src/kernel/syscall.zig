@@ -1,6 +1,5 @@
 const arch = @import("arch.zig");
 const scheduler = @import("scheduler.zig");
-const tty = @import("tty.zig");
 
 pub fn exit(context: *arch.cpu.process.Context, _: usize) void {
     const process = scheduler.maybe_process.?;

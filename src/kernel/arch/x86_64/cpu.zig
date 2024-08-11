@@ -12,8 +12,8 @@ const lapic = @import("lapic.zig");
 
 pub const core = struct {
     pub const Info = packed struct {
-        kernel_stack: [*]u8 = undefined,
-        user_stack: [*]u8 = undefined,
+        kernel_stack: u64 = undefined,
+        user_stack: u64 = undefined,
         id: u32 = 0,
 
         pub inline fn write(value: *Info) void {
