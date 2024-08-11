@@ -17,10 +17,10 @@ fn syscallEntry() callconv(.Naked) void {
 
     // Save the context on stack to be restored later
     asm volatile (
-        \\push $0x18
+        \\push $0x1B
         \\pushq %gs:8
         \\push %r11
-        \\push $0x20
+        \\push $0x23
         \\push %rcx
         \\push %rbp
         \\push %rax

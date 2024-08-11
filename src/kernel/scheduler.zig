@@ -22,9 +22,11 @@ const user_stack_top = user_stack_virtual_address + user_stack_page_count * std.
 /// A currently running or idle process
 const Process = struct {
     id: usize,
+    arena: std.heap.ArenaAllocator,
     context: arch.cpu.process.Context,
     page_table: *arch.paging.PageTable,
-    arena: std.heap.ArenaAllocator,
+    parent: ?*Process = null,
+    children: std.ArrayListUnmanaged(?*Process) = .{},
     files: std.ArrayListUnmanaged(?*vfs.FileSystem.Node) = .{},
 
     /// Load the elf segments and user stack, this modifies the context respectively
@@ -161,6 +163,34 @@ const Process = struct {
             unreachable;
         }
     }
+
+    /// Stop the process from running and free resources
+    pub fn stop(self: *Process) void {
+        // It may be currently running, to stop it we have to set the currently running process as null
+        if (maybe_process == self) {
+            maybe_process = null;
+        }
+
+        // It may be in the process queue, to forbid it from returning back as a running process
+        // we have to remove it
+        for (process_queue.readableSlice(0), 0..) |waiting_process, i| {
+            if (waiting_process == self) {
+                for (0..i) |_| {
+                    process_queue.writeItem(process_queue.readItem().?) catch unreachable;
+                }
+
+                _ = process_queue.readItem().?;
+            }
+        }
+
+        for (self.files.items) |maybe_file| {
+            if (maybe_file) |file| {
+                file.close();
+            }
+        }
+
+        self.arena.deinit();
+    }
 };
 
 /// Set the initial process, which is necessary before starting the scheduler if there is no processes before this
@@ -203,35 +233,24 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 
 /// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
 pub fn kill(pid: usize) void {
-    // Make sure if it is the running process to stop it
-    if (maybe_process != null and maybe_process.?.id == pid) {
-        maybe_process = null;
-    }
-
     // Now we search for it in the list because we must free the resources
     for (processes.items) |*process| {
         if (process.id == pid) {
-            for (process.files.items) |maybe_file| {
-                if (maybe_file) |file| {
-                    file.close();
-                }
-            }
-
-            process.arena.deinit();
-
-            // It may be in the process queue, to forbid it from returning back as a running process
-            // we have to remove it
-            for (process_queue.readableSlice(0), 0..) |waiting_process, i| {
-                if (process == waiting_process) {
-                    // We have to push it into the top of the queue
-                    for (0..i) |_| {
-                        process_queue.writeItem(process_queue.readItem().?) catch unreachable;
+            if (process.parent) |parent_process| {
+                for (parent_process.children.items) |*maybe_child| {
+                    if (maybe_child.* == process) {
+                        maybe_child.* = null;
                     }
-
-                    // Now pop it from the queue
-                    _ = process_queue.readItem().?;
                 }
             }
+
+            for (process.children.items) |maybe_child| {
+                if (maybe_child) |child| {
+                    kill(child.id);
+                }
+            }
+
+            process.stop();
 
             break;
         }
