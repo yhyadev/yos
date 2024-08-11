@@ -25,7 +25,7 @@ const Process = struct {
     context: arch.cpu.process.Context,
     page_table: *arch.paging.PageTable,
     arena: std.heap.ArenaAllocator,
-    files: std.ArrayListUnmanaged(*vfs.FileSystem.Node) = .{},
+    files: std.ArrayListUnmanaged(?*vfs.FileSystem.Node) = .{},
 
     /// Load the elf segments and user stack, this modifies the context respectively
     fn loadElf(self: *Process, elf_content: []const u8) !void {
@@ -104,14 +104,22 @@ const Process = struct {
     pub fn writeFile(self: *Process, fd: usize, offset: usize, buffer: []const u8) usize {
         if (fd > self.files.items.len) return 0;
 
-        return self.files.items[fd].write(offset, buffer);
+        if (self.files.items[fd]) |file| {
+            return file.write(offset, buffer);
+        }
+
+        return 0;
     }
 
     /// Read from file using its index in the open files list
     pub fn readFile(self: *Process, fd: usize, offset: usize, buffer: []u8) usize {
         if (fd > self.files.items.len) return 0;
 
-        return self.files.items[fd].read(offset, buffer);
+        if (self.files.items[fd]) |file| {
+            return file.read(offset, buffer);
+        }
+
+        return 0;
     }
 
     /// Open a file and return its index in the open files list
@@ -128,9 +136,13 @@ const Process = struct {
 
     /// Close a file using its index in the open files list
     pub fn closeFile(self: *Process, fd: usize) !void {
-        if (self.files.items.len <= fd) return error.NotFound;
+        if (fd > self.files.items.len) return error.NotFound;
 
-        self.files.items[fd].close();
+        if (self.files.items[fd]) |file| {
+            self.files.items[fd] = null;
+
+            return file.close();
+        }
     }
 
     /// Pass the control to underlying code that the process hold
@@ -199,8 +211,10 @@ pub fn kill(pid: usize) void {
     // Now we search for it in the list because we must free the resources
     for (processes.items) |*process| {
         if (process.id == pid) {
-            for (process.files.items) |file| {
-                file.close();
+            for (process.files.items) |maybe_file| {
+                if (maybe_file) |file| {
+                    file.close();
+                }
             }
 
             process.arena.deinit();
