@@ -114,6 +114,9 @@ fn createFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) Cre
 
     const child_node = try parent_directory.children.addOne(backing_allocator);
 
+    const name = std.fs.path.basename(path);
+    const name_on_heap = try backing_allocator.dupe(u8, name);
+
     // Uses indirection because Zig slices contain the length with them
     const content_on_heap = try backing_allocator.create([]u8);
 
@@ -127,7 +130,7 @@ fn createFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) Cre
     }
 
     child_node.* = .{
-        .name = std.fs.path.basename(path),
+        .name = name_on_heap,
         .tag = .file,
         .ctx = @ptrCast(@alignCast(content_on_heap)),
         .vtable = &File.vtable,
@@ -149,8 +152,11 @@ fn createDirectory(cwd: []const u8, path: []const u8) CreateError!void {
     const child_directory = try directories.addOne(backing_allocator);
     child_directory.* = .{ .node = undefined };
 
+    const name = std.fs.path.basename(path);
+    const name_on_heap = try backing_allocator.dupe(u8, name);
+
     child_node.* = .{
-        .name = std.fs.path.basename(path),
+        .name = name_on_heap,
         .tag = .directory,
         .ctx = child_directory,
         .vtable = &Directory.vtable,
