@@ -1,12 +1,12 @@
 pub const syscall = struct {
     pub const Code = enum(usize) {
-        exit,
         write,
         read,
         open,
         close,
-        getpid,
+        exit,
         kill,
+        getpid,
         fork,
         execv,
         scrput,

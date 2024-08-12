@@ -1,8 +1,6 @@
 const yos = @import("yos");
 
 export fn _start() noreturn {
-    yos.console.print("=> Initializing YUI..\n", .{});
-
     const screen_width = yos.screen.width();
     const screen_height = yos.screen.width();
 

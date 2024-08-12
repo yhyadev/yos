@@ -2,12 +2,6 @@ const arch = @import("arch.zig");
 const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 
-pub fn exit(context: *arch.cpu.process.Context, _: usize) void {
-    const process = scheduler.maybe_process.?;
-
-    kill(context, process.id);
-}
-
 pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
     const buffer = @as([*]u8, @ptrFromInt(buffer_ptr))[0..buffer_len];
 
@@ -51,16 +45,22 @@ pub fn close(context: *arch.cpu.process.Context, fd: usize) void {
     };
 }
 
-pub fn getpid(context: *arch.cpu.process.Context) void {
+pub fn exit(context: *arch.cpu.process.Context, _: usize) void {
     const process = scheduler.maybe_process.?;
 
-    context.rax = process.id;
+    kill(context, process.id);
 }
 
 pub fn kill(context: *arch.cpu.process.Context, pid: usize) void {
     scheduler.kill(pid);
 
     scheduler.reschedule(context) catch @panic("out of memory");
+}
+
+pub fn getpid(context: *arch.cpu.process.Context) void {
+    const process = scheduler.maybe_process.?;
+
+    context.rax = process.id;
 }
 
 pub fn fork(context: *arch.cpu.process.Context) void {
