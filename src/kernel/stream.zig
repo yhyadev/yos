@@ -2,7 +2,7 @@
 //!
 //! An implementation of first in first out stream
 
-const Key = @import("drivers/keyboard/Key.zig");
+const Key = @import("drivers/keyboard/key.zig").Key;
 
 pub var keys = Stream(Key, 256){};
 

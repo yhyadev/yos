@@ -13,6 +13,7 @@ pub const syscall = struct {
         scrget,
         scrwidth,
         scrheight,
+        keypoll,
     };
 
     pub fn syscall0(code: Code) usize {

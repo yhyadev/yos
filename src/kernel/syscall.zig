@@ -1,6 +1,7 @@
 const arch = @import("arch.zig");
 const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
+const stream = @import("stream.zig");
 
 pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
     const buffer = @as([*]u8, @ptrFromInt(buffer_ptr))[0..buffer_len];
@@ -104,4 +105,14 @@ pub fn scrwidth(context: *arch.cpu.process.Context) void {
 
 pub fn scrheight(context: *arch.cpu.process.Context) void {
     context.rax = screen.framebuffer.height;
+}
+
+pub fn keypoll(context: *arch.cpu.process.Context) void {
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = -1;
+
+    if (stream.keys.poll()) |key| {
+        result.* = @as(u8, @bitCast(key));
+    }
 }

@@ -1,4 +1,4 @@
-pub const Key = @import("../Key.zig");
+pub const Key = @import("../key.zig").Key;
 
 const Keyboard = @This();
 

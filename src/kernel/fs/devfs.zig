@@ -4,8 +4,8 @@
 
 const std = @import("std");
 
-const console = @import("../console.zig");
 const vfs = @import("vfs.zig");
+const console = @import("../console.zig");
 
 var backing_allocator: std.mem.Allocator = undefined;
 
