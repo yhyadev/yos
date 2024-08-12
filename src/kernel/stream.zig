@@ -11,13 +11,9 @@ pub fn Stream(comptime V: type, comptime capacity: usize) type {
         items: [capacity]V = undefined,
         len: usize = 0,
 
-        sink: bool = false,
-
         const Self = @This();
 
         pub fn append(self: *Self, value: V) void {
-            if (self.sink) return;
-
             if (self.len + 1 > capacity) {
                 self.len = 0;
             }
