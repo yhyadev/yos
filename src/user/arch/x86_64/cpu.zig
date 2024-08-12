@@ -9,6 +9,10 @@ pub const syscall = struct {
         kill,
         fork,
         execv,
+        scrput,
+        scrget,
+        scrwidth,
+        scrheight,
     };
 
     pub fn syscall0(code: Code) usize {
