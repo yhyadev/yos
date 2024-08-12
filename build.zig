@@ -138,7 +138,7 @@ pub fn build(b: *std.Build) !void {
 
         _ = iso_tree.addCopyFile(initrd_output, "boot/initrd");
 
-        _ = iso_tree.addCopyFile(b.path("limine.cfg"), "boot/limine/limine.cfg");
+        _ = iso_tree.addCopyFile(b.path("limine.conf"), "boot/limine/limine.conf");
 
         _ = iso_tree.addCopyFile(limine_raw.path("limine-bios.sys"), "boot/limine/limine-bios.sys");
 
