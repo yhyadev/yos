@@ -4,8 +4,6 @@
 
 const Key = @import("drivers/keyboard/Key.zig");
 
-pub var sink = Stream(u8, 0){ .sink = true };
-
 pub var keys = Stream(Key, 256){};
 
 pub fn Stream(comptime V: type, comptime capacity: usize) type {
