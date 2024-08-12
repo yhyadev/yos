@@ -222,14 +222,14 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     }
 
     {
-        const tty_device = vfs.openAbsolute("/dev/tty") catch |err| switch (err) {
+        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
             error.OutOfMemory => return err,
-            error.NotFound => @panic("tty device is not found"),
+            error.NotFound => @panic("console device is not found"),
 
             else => unreachable,
         };
 
-        try process.files.appendNTimes(scoped_allocator, tty_device, 3);
+        try process.files.appendNTimes(scoped_allocator, console_device, 3);
     }
 
     maybe_process = process;
@@ -296,13 +296,13 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
     }
 
     {
-        const tty_device = vfs.openAbsolute("/dev/tty") catch |err| switch (err) {
+        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
 
             else => unreachable,
         };
 
-        try child_process.files.appendNTimes(scoped_allocator, tty_device, 3);
+        try child_process.files.appendNTimes(scoped_allocator, console_device, 3);
     }
 
     try parent_process.children.append(parent_process.arena.allocator(), child_process);
@@ -337,14 +337,14 @@ pub fn execv(context: *arch.cpu.process.Context, argv: []const [*:0]const u8) !v
     process.files.clearRetainingCapacity();
 
     {
-        const tty_device = vfs.openAbsolute("/dev/tty") catch |err| switch (err) {
+        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
             error.OutOfMemory => return err,
-            error.NotFound => @panic("tty device is not found"),
+            error.NotFound => @panic("console device is not found"),
 
             else => unreachable,
         };
 
-        try process.files.appendNTimes(scoped_allocator, tty_device, 3);
+        try process.files.appendNTimes(scoped_allocator, console_device, 3);
     }
 
     context.* = process.context;

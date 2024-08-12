@@ -1,6 +1,6 @@
-//! Teletype
+//! Console
 //!
-//! A small terninal emulation so we can display messages on screen
+//! A console implementation so we can display messages on screen
 
 const std = @import("std");
 
@@ -28,7 +28,7 @@ const Font = struct {
     text_height: usize,
 };
 
-/// The current state of the tty, used for keeping the current x and y or other information, it
+/// The current state of the console, used for keeping the current x and y or other information, it
 /// is public so you can change the background or foreground (don't touch other fields)
 pub var state: State = .{};
 

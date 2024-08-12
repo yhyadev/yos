@@ -5,7 +5,7 @@
 const std = @import("std");
 
 const cpu = @import("cpu.zig");
-const tty = @import("../../tty.zig");
+const console = @import("../../console.zig");
 
 pub var idt: InterruptDescriptorTable = .{};
 
@@ -109,15 +109,15 @@ fn handleDivisionError(_: *InterruptContext) callconv(.Interrupt) void {
 }
 
 fn handleDebug(_: *InterruptContext) callconv(.Interrupt) void {
-    tty.print("debug\n", .{});
+    console.print("debug\n", .{});
 }
 
 fn handleBreakpoint(_: *InterruptContext) callconv(.Interrupt) void {
-    tty.print("breakpoint\n", .{});
+    console.print("breakpoint\n", .{});
 }
 
 fn handleOverflow(_: *InterruptContext) callconv(.Interrupt) void {
-    tty.print("overflow\n", .{});
+    console.print("overflow\n", .{});
 }
 
 fn handleBoundRangeExceeded(_: *InterruptContext) callconv(.Interrupt) void {

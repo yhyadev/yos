@@ -9,8 +9,6 @@ export fn _start() noreturn {
         if (result != 0) {
             yos.console.print("could not initialize yui: {}\n", .{result});
         }
-    } else {
-        yos.wait(yui_pid);
     }
 
     while (true) {}

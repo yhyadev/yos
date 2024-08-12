@@ -13,6 +13,7 @@ pub const panic = crash.panic;
 
 const acpi = @import("acpi.zig");
 const arch = @import("arch.zig");
+const console = @import("console.zig");
 const crash = @import("crash.zig");
 const higher_half = @import("higher_half.zig");
 const initrd = @import("initrd.zig");
@@ -20,7 +21,6 @@ const memory = @import("memory.zig");
 const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const smp = @import("smp.zig");
-const tty = @import("tty.zig");
 const devfs = @import("fs/devfs.zig");
 const tarfs = @import("fs/tarfs.zig");
 const vfs = @import("fs/vfs.zig");
@@ -38,8 +38,8 @@ pub export fn _start() noreturn {
     // Initialize screen framebuffers
     screen.init();
 
-    // Initialize teletype emulation
-    tty.init();
+    // Initialize console
+    console.init();
 
     // Initialize symmetric multiprocessing and go to the first stage
     smp.init(&stage1);
