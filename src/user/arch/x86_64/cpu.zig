@@ -7,6 +7,7 @@ pub const syscall = struct {
         close,
         getpid,
         kill,
+        fork,
     };
 
     pub fn syscall0(code: Code) usize {

@@ -14,6 +14,7 @@ pub const panic = crash.panic;
 const acpi = @import("acpi.zig");
 const arch = @import("arch.zig");
 const crash = @import("crash.zig");
+const higher_half = @import("higher_half.zig");
 const initrd = @import("initrd.zig");
 const memory = @import("memory.zig");
 const scheduler = @import("scheduler.zig");
@@ -54,6 +55,9 @@ fn stage1() noreturn {
     const core_id = arch.cpu.core.Info.read().id;
 
     if (core_id == 0) {
+        // Initialize information about our higher half kernel
+        higher_half.init();
+
         // Initialize memory allocation
         memory.init();
 

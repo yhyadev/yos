@@ -191,7 +191,7 @@ pub fn build(b: *std.Build) !void {
                 const qemu = b.addSystemCommand(&.{"qemu-system-x86_64"});
 
                 qemu.addArgs(&.{ "-M", "q35" });
-                qemu.addArgs(&.{ "-m", "256M" });
+                qemu.addArgs(&.{ "-m", "1G" });
                 qemu.addArgs(&.{"-cdrom"});
                 qemu.addFileArg(iso_output);
                 qemu.addArgs(&.{ "-boot", "d" });

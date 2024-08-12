@@ -52,3 +52,7 @@ pub fn getpid() usize {
 pub fn kill(pid: usize) void {
     _ = syscall1(.kill, pid);
 }
+
+pub fn fork() usize {
+    return syscall0(.fork);
+}

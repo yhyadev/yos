@@ -13,7 +13,7 @@ pub var maybe_process: ?*Process = null;
 var processes: std.ArrayListUnmanaged(Process) = .{};
 var process_queue: std.fifo.LinearFifo(*Process, .Dynamic) = undefined;
 
-const reschedule_ticks = 0x10000;
+const reschedule_ticks = 0x100000;
 
 const user_stack_page_count = 16;
 const user_stack_virtual_address = 0x10002000;
@@ -45,20 +45,20 @@ const Process = struct {
 
                 std.elf.PT_PHDR => {},
 
-                std.elf.PT_LOAD => try mapElfSegment(scoped_allocator, self.page_table, elf_content, program_header),
+                std.elf.PT_LOAD => try mapElfSegment(self.page_table, scoped_allocator, elf_content, program_header),
 
                 else => return error.BadElf,
             }
         }
 
-        try mapUserStack(scoped_allocator, self.page_table);
+        try mapUserStack(self.page_table, scoped_allocator);
 
         self.context.rcx = elf_header.entry;
         self.context.rsp = user_stack_top;
     }
 
     /// Map an elf segment into a specific page table with a specific scoped allocator, this expects the segment to be aligned to 4096 (which is the minimum page size)
-    fn mapElfSegment(scoped_allocator: std.mem.Allocator, page_table: *arch.paging.PageTable, elf_content: []const u8, program_header: std.elf.Elf64_Phdr) !void {
+    fn mapElfSegment(page_table: *arch.paging.PageTable, scoped_allocator: std.mem.Allocator, elf_content: []const u8, program_header: std.elf.Elf64_Phdr) !void {
         if (program_header.p_filesz != program_header.p_memsz) return error.BadElf;
 
         const page_count = std.math.divCeil(usize, program_header.p_filesz, std.mem.page_size) catch unreachable;
@@ -68,11 +68,10 @@ const Process = struct {
 
         for (0..page_count) |i| {
             const virtual_address = program_header.p_vaddr + i * std.mem.page_size;
-            const physical_address = arch.paging.physicalFromVirtual(page_table, @intFromPtr(pages.ptr)).? + i * std.mem.page_size;
+            const physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).? + i * std.mem.page_size;
 
-            try arch.paging.mapPage(
+            try page_table.map(
                 scoped_allocator,
-                page_table,
                 virtual_address,
                 physical_address,
                 .{
@@ -86,19 +85,24 @@ const Process = struct {
     }
 
     /// Map the user stack into a specific page table with a specific scoped allocator
-    fn mapUserStack(scoped_allocator: std.mem.Allocator, page_table: *arch.paging.PageTable) !void {
+    fn mapUserStack(page_table: *arch.paging.PageTable, scoped_allocator: std.mem.Allocator) !void {
         const user_stack_pages = try scoped_allocator.allocWithOptions(u8, user_stack_page_count * std.mem.page_size, std.mem.page_size, null);
 
         for (0..user_stack_page_count) |i| {
             const virtual_address = user_stack_virtual_address + i * std.mem.page_size;
-            const physical_address = arch.paging.physicalFromVirtual(page_table, @intFromPtr(user_stack_pages.ptr)).? + i * std.mem.page_size;
+            const physical_address = page_table.physicalFromVirtual(@intFromPtr(user_stack_pages.ptr)).? + i * std.mem.page_size;
 
-            try arch.paging.mapPage(scoped_allocator, page_table, virtual_address, physical_address, .{
-                .user = true,
-                .global = false,
-                .writable = true,
-                .executable = false,
-            });
+            try page_table.map(
+                scoped_allocator,
+                virtual_address,
+                physical_address,
+                .{
+                    .user = true,
+                    .global = false,
+                    .writable = true,
+                    .executable = false,
+                },
+            );
         }
     }
 
@@ -166,13 +170,10 @@ const Process = struct {
 
     /// Stop the process from running and free resources
     pub fn stop(self: *Process) void {
-        // It may be currently running, to stop it we have to set the currently running process as null
         if (maybe_process == self) {
             maybe_process = null;
         }
 
-        // It may be in the process queue, to forbid it from returning back as a running process
-        // we have to remove it
         for (process_queue.readableSlice(0), 0..) |waiting_process, i| {
             if (waiting_process == self) {
                 for (0..i) |_| {
@@ -195,18 +196,19 @@ const Process = struct {
 
 /// Set the initial process, which is necessary before starting the scheduler if there is no processes before this
 pub fn setInitialProcess(elf_file_path: []const u8) !void {
-    maybe_process = try processes.addOne(backing_allocator);
+    const process = try processes.addOne(backing_allocator);
 
-    maybe_process.?.* = .{
+    process.* = .{
         .id = processes.items.len,
+        .arena = std.heap.ArenaAllocator.init(backing_allocator),
         .context = .{},
         .page_table = undefined,
-        .arena = std.heap.ArenaAllocator.init(backing_allocator),
     };
 
-    const scoped_allocator = maybe_process.?.arena.allocator();
+    const scoped_allocator = process.arena.allocator();
 
-    maybe_process.?.page_table = try arch.paging.allocPageTable(scoped_allocator);
+    process.page_table = try arch.paging.PageTable.init(scoped_allocator);
+    process.page_table.mapKernel();
 
     {
         const elf_file = try vfs.openAbsolute(elf_file_path);
@@ -216,7 +218,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 
         _ = elf_file.read(0, elf_content);
 
-        try maybe_process.?.loadElf(elf_content);
+        try process.loadElf(elf_content);
     }
 
     {
@@ -227,15 +229,18 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
             else => unreachable,
         };
 
-        try maybe_process.?.files.appendNTimes(scoped_allocator, tty_device, 3);
+        try process.files.appendNTimes(scoped_allocator, tty_device, 3);
     }
+
+    maybe_process = process;
 }
 
 /// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
 pub fn kill(pid: usize) void {
-    // Now we search for it in the list because we must free the resources
     for (processes.items) |*process| {
         if (process.id == pid) {
+            process.stop();
+
             if (process.parent) |parent_process| {
                 for (parent_process.children.items) |*maybe_child| {
                     if (maybe_child.* == process) {
@@ -250,46 +255,91 @@ pub fn kill(pid: usize) void {
                 }
             }
 
-            process.stop();
-
             break;
         }
     }
 }
 
-/// Control the timer interrupt manually using the reschedule ticks specified
-inline fn oneshot() void {
+/// Spawn a new process while cloning its parent context
+pub fn fork(context: *arch.cpu.process.Context) !usize {
+    const parent_process = maybe_process.?;
+
+    const child_process = try processes.addOne(backing_allocator);
+
+    child_process.* = .{
+        .id = processes.items.len,
+        .arena = std.heap.ArenaAllocator.init(backing_allocator),
+        .context = context.*,
+        .page_table = undefined,
+    };
+
+    child_process.context.rax = 0;
+
+    const scoped_allocator = child_process.arena.allocator();
+
+    child_process.page_table = try parent_process.page_table.dupe(scoped_allocator);
+
+    {
+        try Process.mapUserStack(child_process.page_table, scoped_allocator);
+
+        const StackPages = *[user_stack_page_count * std.mem.page_size]u8;
+
+        const parent_stack_pages: StackPages = @ptrFromInt(arch.paging.virtualFromPhysical(
+            parent_process.page_table.physicalFromVirtual(user_stack_virtual_address).?,
+        ));
+
+        const child_stack_pages: StackPages = @ptrFromInt(arch.paging.virtualFromPhysical(
+            child_process.page_table.physicalFromVirtual(user_stack_virtual_address).?,
+        ));
+
+        @memcpy(child_stack_pages, parent_stack_pages);
+    }
+
+    {
+        const tty_device = vfs.openAbsolute("/dev/tty") catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+
+            else => unreachable,
+        };
+
+        try child_process.files.appendNTimes(scoped_allocator, tty_device, 3);
+    }
+
+    try parent_process.children.append(parent_process.arena.allocator(), child_process);
+
+    try process_queue.writeItem(child_process);
+
+    return child_process.id;
+}
+
+/// Control the timer interrupt manually using the ticks specified
+inline fn oneshot(ticks: usize) void {
     if (arch.target.isX86()) {
-        arch.lapic.getLapic().oneshot(arch.cpu.interrupts.offset(0), @truncate(reschedule_ticks));
+        arch.lapic.getLapic().oneshot(arch.cpu.interrupts.offset(0), @truncate(ticks));
     }
 }
 
+var start_rescheduling = false;
+
 /// Reschedule processes, this assumes the timer gave control to the kernel
 pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!void {
-    // If there is no running process and the process queue is empty, don't let the
-    // processor complete processing user's code
     if (maybe_process == null and process_queue.readableLength() == 0) {
         while (true) {}
     }
 
-    // Only if there is a running process, we need to update it before switch contexts
-    if (maybe_process) |process| {
-        if (process_queue.readableLength() > 0) {
-            process.context = context.*;
+    if (process_queue.readItem()) |waiting_process| {
+        if (maybe_process) |running_process| {
+            running_process.context = context.*;
 
-            try process_queue.writeItem(process);
+            try process_queue.writeItem(running_process);
         }
+
+        maybe_process = waiting_process;
+
+        context.* = waiting_process.context;
+
+        arch.paging.setActivePageTable(waiting_process.page_table);
     }
-
-    // If there is a process in the queue, switch contexts and set it as the currently running process
-    if (process_queue.readItem()) |process| {
-        maybe_process = process;
-
-        context.* = process.context;
-    }
-
-    // Now change the active page table to the currently running process's page table
-    arch.paging.setActivePageTable(maybe_process.?.page_table);
 }
 
 /// Called when the timer gives back control to the kernel
@@ -298,7 +348,7 @@ fn interrupt(context: *arch.cpu.process.Context) callconv(.C) void {
 
     reschedule(context) catch @panic("out of memory");
 
-    oneshot();
+    oneshot(reschedule_ticks);
 }
 
 /// Start scheduling processes and join user-space
@@ -308,7 +358,7 @@ pub fn start() noreturn {
 
     arch.cpu.interrupts.handle(0, &interrupt);
 
-    oneshot();
+    oneshot(reschedule_ticks);
 
     maybe_process.?.run();
 }

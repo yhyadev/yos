@@ -10,10 +10,8 @@ const arch = @import("arch.zig");
 const SpinLock = @import("locks/SpinLock.zig");
 
 export var memory_map_request: limine.MemoryMapRequest = .{};
-export var hhdm_request: limine.HhdmRequest = .{};
 
-var memory_region: []u8 = undefined;
-pub var hhdm_offset: usize = undefined;
+pub var memory_region: []u8 = undefined;
 
 pub const PageAllocator = struct {
     var initialized = false;
@@ -106,16 +104,7 @@ pub const PageAllocator = struct {
 };
 
 pub fn init() void {
-    const maybe_hhdm_response = hhdm_request.response;
     const maybe_memory_map_response = memory_map_request.response;
-
-    if (maybe_hhdm_response == null) {
-        @panic("could not retrieve information about the higher half kernel");
-    }
-
-    const hhdm_response = maybe_hhdm_response.?;
-
-    hhdm_offset = hhdm_response.offset;
 
     if (maybe_memory_map_response == null) {
         @panic("could not retrieve information about the ram");

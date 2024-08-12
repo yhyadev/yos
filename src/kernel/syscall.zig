@@ -62,3 +62,9 @@ pub fn kill(context: *arch.cpu.process.Context, pid: usize) void {
 
     scheduler.reschedule(context) catch @panic("out of memory");
 }
+
+pub fn fork(context: *arch.cpu.process.Context) void {
+    context.rax = scheduler.fork(context) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+    };
+}
