@@ -34,7 +34,6 @@ pub fn open(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize
         error.OutOfMemory => @panic("out of memory"),
         error.NotFound => -1,
         error.NotDirectory => -2,
-        // May be caused if the currently working directory is not absolute (which is just / for now)
         error.PathNotAbsolute => -3,
     };
 }
@@ -66,5 +65,21 @@ pub fn kill(context: *arch.cpu.process.Context, pid: usize) void {
 pub fn fork(context: *arch.cpu.process.Context) void {
     context.rax = scheduler.fork(context) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
+    };
+}
+
+pub fn execv(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usize) void {
+    const argv = @as([*]const [*:0]const u8, @ptrFromInt(argv_ptr))[0..argv_len];
+
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = 0;
+
+    scheduler.execv(context, argv) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+        error.NotFound => result.* = -1,
+        error.NotDirectory => result.* = -2,
+        error.PathNotAbsolute => result.* = -3,
+        error.BadElf => result.* = -4,
     };
 }

@@ -56,3 +56,7 @@ pub fn kill(pid: usize) void {
 pub fn fork() usize {
     return syscall0(.fork);
 }
+
+pub fn execv(argv: []const [*:0]const u8) isize {
+    return @bitCast(syscall2(.execv, @intFromPtr(argv.ptr), argv.len));
+}

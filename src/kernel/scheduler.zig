@@ -312,6 +312,43 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
     return child_process.id;
 }
 
+/// Replace the current running context with a new context that is
+pub fn execv(context: *arch.cpu.process.Context, argv: []const [*:0]const u8) !void {
+    const process = maybe_process.?;
+
+    const scoped_allocator = process.arena.allocator();
+
+    if (argv.len < 1) return error.NotFound;
+
+    const elf_file_path = std.mem.span(argv[0]);
+
+    {
+        const elf_file = try vfs.openAbsolute(elf_file_path);
+        defer elf_file.close();
+
+        const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
+
+        _ = elf_file.read(0, elf_content);
+
+        try process.loadElf(elf_content);
+    }
+
+    process.files.clearRetainingCapacity();
+
+    {
+        const tty_device = vfs.openAbsolute("/dev/tty") catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            error.NotFound => @panic("tty device is not found"),
+
+            else => unreachable,
+        };
+
+        try process.files.appendNTimes(scoped_allocator, tty_device, 3);
+    }
+
+    context.* = process.context;
+}
+
 /// Control the timer interrupt manually using the ticks specified
 inline fn oneshot(ticks: usize) void {
     if (arch.target.isX86()) {
