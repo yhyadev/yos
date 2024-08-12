@@ -5,7 +5,7 @@
 const std = @import("std");
 const cpu = @import("cpu.zig");
 
-pub var backup_kernel_stack: [16 * std.mem.page_size]u8 = undefined;
+pub var backup_kernel_stack: [16 * std.mem.page_size + 1]u8 = undefined;
 
 pub var tss: TaskStateSegment.Entry = .{};
 

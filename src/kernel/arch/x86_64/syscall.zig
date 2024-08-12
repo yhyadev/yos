@@ -142,5 +142,5 @@ pub fn init() void {
     cpu.registers.ModelSpecific.write(.efer, cpu.registers.ModelSpecific.read(.efer) | 1);
     cpu.registers.ModelSpecific.write(.sf_mask, 0b1111110111111111010101);
 
-    cpu.core.Info.read().kernel_stack = @intFromPtr(&gdt.backup_kernel_stack) + gdt.backup_kernel_stack.len;
+    cpu.core.Info.read().kernel_stack = @intFromPtr(&gdt.backup_kernel_stack[gdt.backup_kernel_stack.len - 1]);
 }
