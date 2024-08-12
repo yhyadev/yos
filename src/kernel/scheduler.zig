@@ -319,8 +319,6 @@ inline fn oneshot(ticks: usize) void {
     }
 }
 
-var start_rescheduling = false;
-
 /// Reschedule processes, this assumes the timer gave control to the kernel
 pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!void {
     if (maybe_process == null and process_queue.readableLength() == 0) {
