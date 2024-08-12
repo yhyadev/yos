@@ -312,7 +312,8 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
     return child_process.id;
 }
 
-/// Replace the current running context with a new context that is
+/// Replace the current running context with a new context that is retrieved from an
+/// elf file loaded from path in argv[0]
 pub fn execv(context: *arch.cpu.process.Context, argv: []const [*:0]const u8) !void {
     const process = maybe_process.?;
 
