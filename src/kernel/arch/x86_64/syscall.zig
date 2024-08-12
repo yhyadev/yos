@@ -89,7 +89,6 @@ fn syscallEntry() callconv(.Naked) void {
         \\pop %rbx
         \\pop %rax
         \\pop %rbp
-        \\add $0x28, %rsp
     );
 
     // Return back to user stack
