@@ -1,22 +1,7 @@
-pub const syscall = struct {
-    pub const Code = enum(usize) {
-        write,
-        read,
-        open,
-        close,
-        poll,
-        exit,
-        kill,
-        getpid,
-        fork,
-        execv,
-        scrput,
-        scrget,
-        scrwidth,
-        scrheight,
-    };
+const abi = @import("abi");
 
-    pub fn syscall0(code: Code) usize {
+pub const syscall = struct {
+    pub fn syscall0(code: abi.Syscode) usize {
         return asm volatile ("syscall"
             : [result] "={rax}" (-> usize),
             : [code] "{rax}" (@intFromEnum(code)),
@@ -24,7 +9,7 @@ pub const syscall = struct {
         );
     }
 
-    pub fn syscall1(code: Code, arg1: usize) usize {
+    pub fn syscall1(code: abi.Syscode, arg1: usize) usize {
         return asm volatile ("syscall"
             : [result] "={rax}" (-> usize),
             : [code] "{rax}" (@intFromEnum(code)),
@@ -33,7 +18,7 @@ pub const syscall = struct {
         );
     }
 
-    pub fn syscall2(code: Code, arg1: usize, arg2: usize) usize {
+    pub fn syscall2(code: abi.Syscode, arg1: usize, arg2: usize) usize {
         return asm volatile ("syscall"
             : [result] "={rax}" (-> usize),
             : [code] "{rax}" (@intFromEnum(code)),
@@ -43,7 +28,7 @@ pub const syscall = struct {
         );
     }
 
-    pub fn syscall3(code: Code, arg1: usize, arg2: usize, arg3: usize) usize {
+    pub fn syscall3(code: abi.Syscode, arg1: usize, arg2: usize, arg3: usize) usize {
         return asm volatile ("syscall"
             : [result] "={rax}" (-> usize),
             : [code] "{rax}" (@intFromEnum(code)),
@@ -54,7 +39,7 @@ pub const syscall = struct {
         );
     }
 
-    pub fn syscall4(code: Code, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
+    pub fn syscall4(code: abi.Syscode, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
         return asm volatile ("syscall"
             : [result] "={rax}" (-> usize),
             : [code] "{rax}" (@intFromEnum(code)),
@@ -66,7 +51,7 @@ pub const syscall = struct {
         );
     }
 
-    pub fn syscall5(code: Code, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {
+    pub fn syscall5(code: abi.Syscode, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {
         return asm volatile ("syscall"
             : [result] "={rax}" (-> usize),
             : [code] "{rax}" (@intFromEnum(code)),
@@ -80,7 +65,7 @@ pub const syscall = struct {
     }
 
     pub fn syscall6(
-        code: Code,
+        code: abi.Syscode,
         arg1: usize,
         arg2: usize,
         arg3: usize,

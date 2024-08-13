@@ -1,3 +1,5 @@
+const abi = @import("abi");
+
 const arch = @import("arch.zig");
 const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
@@ -100,13 +102,13 @@ pub fn execv(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usiz
 
 pub fn scrput(_: *arch.cpu.process.Context, x: usize, y: usize, color_64: usize) void {
     const color_32: u32 = @truncate(color_64);
-    const color: screen.Color = @bitCast(color_32);
+    const color: abi.Color = @bitCast(color_32);
 
     screen.get(x, y).* = color;
 }
 
 pub fn scrget(context: *arch.cpu.process.Context, x: usize, y: usize) void {
-    const result: *screen.Color = @ptrCast(&context.rax);
+    const result: *abi.Color = @ptrCast(&context.rax);
 
     result.* = screen.get(x, y).*;
 }

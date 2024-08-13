@@ -1,3 +1,20 @@
+pub const Syscode = enum(usize) {
+    write,
+    read,
+    open,
+    close,
+    poll,
+    exit,
+    kill,
+    getpid,
+    fork,
+    execv,
+    scrput,
+    scrget,
+    scrwidth,
+    scrheight,
+};
+
 pub const Key = packed struct {
     code: Code,
     state: State,
@@ -163,4 +180,17 @@ pub const Key = packed struct {
         released,
         pressed,
     };
+};
+
+pub const Color = packed struct(u32) {
+    b: u8,
+    g: u8,
+    r: u8,
+    padding: u8 = 0,
+
+    pub const white: Color = .{ .r = 255, .g = 255, .b = 255 };
+    pub const black: Color = .{ .r = 0, .g = 0, .b = 0 };
+    pub const red: Color = .{ .r = 255, .g = 0, .b = 0 };
+    pub const blue: Color = .{ .r = 0, .g = 0, .b = 255 };
+    pub const green: Color = .{ .r = 0, .g = 255, .b = 0 };
 };

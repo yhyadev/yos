@@ -52,10 +52,18 @@ pub fn build(b: *std.Build) !void {
 
     const kernel_target = try getTarget(b, cpu_arch, .kernel);
 
+    const user_apps_target = try getTarget(b, cpu_arch, .user);
+
     const kernel_optimize = b.standardOptimizeOption(.{});
 
     const limine = b.dependency("limine", .{});
     const limine_raw = b.dependency("limine_raw", .{});
+
+    const abi_module = b.createModule(.{
+        .root_source_file = b.path("src/user/libraries/abi.zig"),
+        .target = user_apps_target,
+        .optimize = .ReleaseSmall,
+    });
 
     const kernel_exe = b.addExecutable(.{
         .name = "kernel",
@@ -68,6 +76,7 @@ pub fn build(b: *std.Build) !void {
 
     {
         kernel_exe.root_module.addImport("limine", limine.module("limine"));
+        kernel_exe.root_module.addImport("abi", abi_module);
 
         switch (cpu_arch) {
             .x86_64 => kernel_exe.setLinkerScript(b.path("src/kernel/arch/x86_64/linker.ld")),
@@ -87,13 +96,13 @@ pub fn build(b: *std.Build) !void {
         {
             const user_apps = try b.build_root.handle.openDir("src/user/apps", .{ .iterate = true });
 
-            const user_apps_target = try getTarget(b, cpu_arch, .user);
-
             const yos_module = b.createModule(.{
-                .root_source_file = b.path("src/user/yos.zig"),
+                .root_source_file = b.path("src/user/libraries/yos.zig"),
                 .target = user_apps_target,
                 .optimize = .ReleaseSmall,
             });
+
+            yos_module.addImport("abi", abi_module);
 
             var user_app_iterator = user_apps.iterate();
 
@@ -106,9 +115,10 @@ pub fn build(b: *std.Build) !void {
                 });
 
                 user_app_exe.root_module.addImport("yos", yos_module);
+                user_app_exe.root_module.addImport("abi", abi_module);
 
                 switch (cpu_arch) {
-                    .x86_64 => user_app_exe.setLinkerScript(b.path("src/user/arch/x86_64/linker.ld")),
+                    .x86_64 => user_app_exe.setLinkerScript(b.path("src/user/libraries/arch/x86_64/linker.ld")),
 
                     else => return error.UnsupportedArch,
                 }
@@ -220,6 +230,7 @@ pub fn build(b: *std.Build) !void {
         });
 
         kernel_check.root_module.addImport("limine", limine.module("limine"));
+        kernel_check.root_module.addImport("abi", abi_module);
 
         const check_step = b.step("check", "Checks if the kernel can compile");
 

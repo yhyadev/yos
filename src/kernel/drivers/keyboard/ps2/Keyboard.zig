@@ -1,4 +1,4 @@
-pub const Key = @import("../key.zig").Key;
+const abi = @import("abi");
 
 const Keyboard = @This();
 
@@ -26,7 +26,7 @@ pub const Mode = enum {
     pause_pressed,
 };
 
-pub fn map(self: *Keyboard, scancode: u8) ?Key {
+pub fn map(self: *Keyboard, scancode: u8) ?abi.Key {
     const previous_mode = self.mode;
 
     self.mode = .normal;

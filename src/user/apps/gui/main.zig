@@ -1,3 +1,4 @@
+const abi = @import("abi");
 const yos = @import("yos");
 
 export fn _start() noreturn {
@@ -6,7 +7,7 @@ export fn _start() noreturn {
 
     for (0..screen_height) |y| {
         for (0..screen_width) |x| {
-            yos.screen.put(x, y, yos.screen.Color.black);
+            yos.screen.put(x, y, abi.Color.black);
         }
     }
 

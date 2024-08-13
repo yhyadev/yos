@@ -3,6 +3,7 @@
 //! A console implementation so we can display messages on screen
 
 const std = @import("std");
+const abi = @import("abi");
 
 const arch = @import("arch.zig");
 const screen = @import("screen.zig");
@@ -33,8 +34,8 @@ const Font = struct {
 pub var state: State = .{};
 
 pub const State = struct {
-    background: screen.Color = screen.Color.black,
-    foreground: screen.Color = screen.Color.white,
+    background: abi.Color = abi.Color.black,
+    foreground: abi.Color = abi.Color.white,
     width: usize = 0,
     height: usize = 0,
     x: usize = 0,
