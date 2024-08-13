@@ -15,6 +15,19 @@ pub const Syscode = enum(usize) {
     scrheight,
 };
 
+pub const Color = packed struct(u32) {
+    b: u8,
+    g: u8,
+    r: u8,
+    padding: u8 = 0,
+
+    pub const white: Color = .{ .r = 255, .g = 255, .b = 255 };
+    pub const black: Color = .{ .r = 0, .g = 0, .b = 0 };
+    pub const red: Color = .{ .r = 255, .g = 0, .b = 0 };
+    pub const blue: Color = .{ .r = 0, .g = 0, .b = 255 };
+    pub const green: Color = .{ .r = 0, .g = 255, .b = 0 };
+};
+
 pub const KeyEvent = packed struct {
     code: Code,
     state: State,
@@ -180,17 +193,4 @@ pub const KeyEvent = packed struct {
         released,
         pressed,
     };
-};
-
-pub const Color = packed struct(u32) {
-    b: u8,
-    g: u8,
-    r: u8,
-    padding: u8 = 0,
-
-    pub const white: Color = .{ .r = 255, .g = 255, .b = 255 };
-    pub const black: Color = .{ .r = 0, .g = 0, .b = 0 };
-    pub const red: Color = .{ .r = 255, .g = 0, .b = 0 };
-    pub const blue: Color = .{ .r = 0, .g = 0, .b = 255 };
-    pub const green: Color = .{ .r = 0, .g = 255, .b = 0 };
 };
