@@ -223,7 +223,7 @@ pub const keyboard = struct {
     };
 
     pub fn poll() ?Key {
-        const maybe_key: isize = @bitCast(syscall0(.keypoll));
+        const maybe_key: isize = @bitCast(syscall1(.poll, 1));
 
         if (maybe_key == -1) {
             return null;

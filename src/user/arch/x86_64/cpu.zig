@@ -4,6 +4,7 @@ pub const syscall = struct {
         read,
         open,
         close,
+        poll,
         exit,
         kill,
         getpid,
@@ -13,7 +14,6 @@ pub const syscall = struct {
         scrget,
         scrwidth,
         scrheight,
-        keypoll,
     };
 
     pub fn syscall0(code: Code) usize {

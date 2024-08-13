@@ -46,6 +46,18 @@ pub fn close(context: *arch.cpu.process.Context, fd: usize) void {
     };
 }
 
+pub fn poll(context: *arch.cpu.process.Context, sid: usize) void {
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = -1;
+
+    if (sid == 1) {
+        if (stream.keys.poll()) |key| {
+            result.* = @as(u8, @bitCast(key));
+        }
+    }
+}
+
 pub fn exit(context: *arch.cpu.process.Context, _: usize) void {
     const process = scheduler.maybe_process.?;
 
@@ -105,14 +117,4 @@ pub fn scrwidth(context: *arch.cpu.process.Context) void {
 
 pub fn scrheight(context: *arch.cpu.process.Context) void {
     context.rax = screen.framebuffer.height;
-}
-
-pub fn keypoll(context: *arch.cpu.process.Context) void {
-    const result: *isize = @ptrCast(&context.rax);
-
-    result.* = -1;
-
-    if (stream.keys.poll()) |key| {
-        result.* = @as(u8, @bitCast(key));
-    }
 }
