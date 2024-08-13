@@ -64,6 +64,7 @@ const Process = struct {
         const page_count = std.math.divCeil(usize, program_header.p_filesz, std.mem.page_size) catch unreachable;
 
         const pages = try scoped_allocator.allocWithOptions(u8, page_count * std.mem.page_size, std.mem.page_size, null);
+
         @memcpy(pages[0..program_header.p_filesz], elf_content[program_header.p_offset .. program_header.p_offset + program_header.p_filesz]);
 
         for (0..page_count) |i| {

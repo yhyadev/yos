@@ -1,12 +1,6 @@
 const yos = @import("yos");
 
-export fn _start() noreturn {
-    init_gui();
-
-    while (true) {}
-}
-
-fn init_gui() void {
+fn gui() void {
     const pid = yos.fork();
 
     if (pid == 0) {
@@ -16,4 +10,10 @@ fn init_gui() void {
             yos.console.print("could not initialize gui: {}\n", .{result});
         }
     }
+}
+
+export fn _start() noreturn {
+    gui();
+
+    while (true) {}
 }

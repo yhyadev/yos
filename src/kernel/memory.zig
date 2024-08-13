@@ -44,15 +44,15 @@ pub const PageAllocator = struct {
         initialized = true;
     }
 
-    fn alloc(_: *anyopaque, len: usize, _: u8, _: usize) ?[*]u8 {
-        std.debug.assert(len > 0);
+    fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
+        std.debug.assert(bytes_len > 0);
 
         mutex.lock();
         defer mutex.unlock();
 
         if (!initialized) PageAllocator.init() catch return null;
 
-        const required_page_count = std.math.divCeil(usize, len, std.mem.page_size) catch unreachable;
+        const required_page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
         if (required_page_count > total_page_count) return null;
 
@@ -81,18 +81,18 @@ pub const PageAllocator = struct {
         return null;
     }
 
-    fn free(_: *anyopaque, buf: []u8, _: u8, _: usize) void {
-        std.debug.assert(buf.len > 0);
+    fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
+        std.debug.assert(bytes.len > 0);
 
         mutex.lock();
         defer mutex.unlock();
 
         if (!initialized) @panic("free is called while the page allocator is not initialized");
 
-        const required_page_count = std.math.divCeil(usize, buf.len, std.mem.page_size) catch unreachable;
+        const required_page_count = std.math.divCeil(usize, bytes.len, std.mem.page_size) catch unreachable;
 
         for (0..total_page_count) |i| {
-            if ((memory_region.ptr + (i * std.mem.page_size)) == buf.ptr) {
+            if ((memory_region.ptr + (i * std.mem.page_size)) == bytes.ptr) {
                 for (i..i + required_page_count) |j| {
                     page_bitmap.toggle(j);
                 }

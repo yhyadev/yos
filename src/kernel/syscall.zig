@@ -1,3 +1,4 @@
+const std = @import("std");
 const abi = @import("abi");
 
 const arch = @import("arch.zig");
@@ -119,4 +120,20 @@ pub fn scrwidth(context: *arch.cpu.process.Context) void {
 
 pub fn scrheight(context: *arch.cpu.process.Context) void {
     context.rax = screen.framebuffer.height;
+}
+
+pub fn alloc(context: *arch.cpu.process.Context, bytes_len: usize) void {
+    const bytes = std.heap.page_allocator.alloc(u8, bytes_len) catch {
+        context.rax = 0;
+
+        return;
+    };
+
+    context.rax = @intFromPtr(bytes.ptr);
+}
+
+pub fn free(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) void {
+    const bytes = @as([*]u8, @ptrFromInt(bytes_ptr))[0..bytes_len];
+
+    std.heap.page_allocator.free(bytes);
 }
