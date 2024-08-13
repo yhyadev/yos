@@ -26,7 +26,7 @@ pub const Mode = enum {
     pause_pressed,
 };
 
-pub fn map(self: *Keyboard, scancode: u8) ?abi.Key {
+pub fn map(self: *Keyboard, scancode: u8) ?abi.KeyEvent {
     const previous_mode = self.mode;
 
     self.mode = .normal;

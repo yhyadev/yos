@@ -15,7 +15,7 @@ pub const Syscode = enum(usize) {
     scrheight,
 };
 
-pub const Key = packed struct {
+pub const KeyEvent = packed struct {
     code: Code,
     state: State,
 

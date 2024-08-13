@@ -43,7 +43,7 @@ pub const screen = struct {
 };
 
 pub const keyboard = struct {
-    pub fn poll() ?abi.Key {
+    pub fn poll() ?abi.KeyEvent {
         const maybe_key: isize = @bitCast(syscall1(.poll, 1));
 
         if (maybe_key == -1) {

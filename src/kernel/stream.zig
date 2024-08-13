@@ -4,7 +4,7 @@
 
 const abi = @import("abi");
 
-pub var keys = Stream(abi.Key, 256){};
+pub var key_events = Stream(abi.KeyEvent, 256){};
 
 pub fn Stream(comptime V: type, comptime capacity: usize) type {
     return struct {

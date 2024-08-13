@@ -40,7 +40,7 @@ fn interrupt(_: *arch.cpu.process.Context) callconv(.C) void {
 
     if (initialized) {
         if (keyboard.map(scancode)) |key| {
-            stream.keys.append(key);
+            stream.key_events.append(key);
         }
     }
 }

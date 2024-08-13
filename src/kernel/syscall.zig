@@ -54,8 +54,8 @@ pub fn poll(context: *arch.cpu.process.Context, sid: usize) void {
     result.* = -1;
 
     if (sid == 1) {
-        if (stream.keys.poll()) |key| {
-            result.* = @as(u8, @bitCast(key));
+        if (stream.key_events.poll()) |key_event| {
+            result.* = @as(u8, @bitCast(key_event));
         }
     }
 }
