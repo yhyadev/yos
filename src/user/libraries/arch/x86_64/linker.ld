@@ -3,9 +3,10 @@ ENTRY(_start)
 
 PHDRS {
     none PT_NULL FLAGS(0);
-    text PT_LOAD FLAGS((1 << 2) | (1 << 0)); /* r-x */
-    rodata PT_LOAD FLAGS((1 << 2)); /* r-- */
-    data PT_LOAD FLAGS((1 << 2) | (1 << 1)); /* rw- */
+    text PT_LOAD FLAGS(4 | 1); /* r-x */
+    rodata PT_LOAD FLAGS(4); /* r-- */
+    data PT_LOAD FLAGS(4 | 2); /* rw- */
+    bss PT_LOAD FLAGS(4 | 2); /* rw- */
 }
 
 SECTIONS {
@@ -31,6 +32,13 @@ SECTIONS {
         *(.data)
         *(.data.*)
     }:data
+
+    . = ALIGN(0x1000);
+
+    .bss . : {
+        *(.bss)
+        *(.bss.*)
+    }:bss
 
     . = ALIGN(0x1000);
 

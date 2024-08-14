@@ -5,10 +5,8 @@
 const std = @import("std");
 const limine = @import("limine");
 
-// Bring Your Own OS
 pub const os = @import("os.zig");
 
-// It is important to be public for @panic builtin and std.debug.print to call it
 pub const panic = crash.panic;
 
 const acpi = @import("acpi.zig");

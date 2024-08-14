@@ -43,6 +43,8 @@ const Process = struct {
             switch (program_header.p_type) {
                 std.elf.PT_NULL => {},
 
+                std.elf.PT_NOTE => {},
+
                 std.elf.PT_PHDR => {},
 
                 std.elf.PT_LOAD => try mapElfSegment(self.page_table, scoped_allocator, elf_content, program_header),
@@ -59,17 +61,19 @@ const Process = struct {
 
     /// Map an elf segment into a specific page table with a specific scoped allocator, this expects the segment to be aligned to 4096 (which is the minimum page size)
     fn mapElfSegment(page_table: *arch.paging.PageTable, scoped_allocator: std.mem.Allocator, elf_content: []const u8, program_header: std.elf.Elf64_Phdr) !void {
-        if (program_header.p_filesz != program_header.p_memsz) return error.BadElf;
-
-        const page_count = std.math.divCeil(usize, program_header.p_filesz, std.mem.page_size) catch unreachable;
+        const page_count = std.math.divCeil(usize, program_header.p_memsz, std.mem.page_size) catch unreachable;
 
         const pages = try scoped_allocator.allocWithOptions(u8, page_count * std.mem.page_size, std.mem.page_size, null);
+
+        const pages_physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).?;
+
+        @memset(pages, 0);
 
         @memcpy(pages[0..program_header.p_filesz], elf_content[program_header.p_offset .. program_header.p_offset + program_header.p_filesz]);
 
         for (0..page_count) |i| {
             const virtual_address = program_header.p_vaddr + i * std.mem.page_size;
-            const physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).? + i * std.mem.page_size;
+            const physical_address = pages_physical_address + i * std.mem.page_size;
 
             try page_table.map(
                 scoped_allocator,
@@ -87,11 +91,13 @@ const Process = struct {
 
     /// Map the user stack into a specific page table with a specific scoped allocator
     fn mapUserStack(page_table: *arch.paging.PageTable, scoped_allocator: std.mem.Allocator) !void {
-        const user_stack_pages = try scoped_allocator.allocWithOptions(u8, user_stack_page_count * std.mem.page_size, std.mem.page_size, null);
+        const pages = try scoped_allocator.allocWithOptions(u8, user_stack_page_count * std.mem.page_size, std.mem.page_size, null);
+
+        const pages_physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).?;
 
         for (0..user_stack_page_count) |i| {
             const virtual_address = user_stack_virtual_address + i * std.mem.page_size;
-            const physical_address = page_table.physicalFromVirtual(@intFromPtr(user_stack_pages.ptr)).? + i * std.mem.page_size;
+            const physical_address = pages_physical_address + i * std.mem.page_size;
 
             try page_table.map(
                 scoped_allocator,

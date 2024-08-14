@@ -105,13 +105,13 @@ pub const PageTable = extern struct {
                     .no_exe = false,
                     .aligned_physical_address = @truncate(getActivePageTable().physicalFromVirtual(@intFromPtr(&new_page_table.entries)).? >> 12),
                 };
-
-                page_table = page_table.entries[page_index].getTable();
-            } else {
-                if (page.huge) @panic("huge pages are not implemented");
-
-                page_table = page.getTable();
             }
+
+            if (page.present and page.huge) {
+                @panic("huge pages are not implemented");
+            }
+
+            page_table = page_table.entries[page_index].getTable();
         }
 
         const was_present = page_table.entries[indices.level_1].present;
@@ -128,7 +128,9 @@ pub const PageTable = extern struct {
             .aligned_physical_address = @truncate(physical_address >> 12),
         };
 
-        if (was_present) cpu.paging.invlpg(virtual_address);
+        if (was_present) {
+            cpu.paging.invlpg(virtual_address);
+        }
     }
 
     /// Unmap a virtual address in the page table
@@ -144,9 +146,13 @@ pub const PageTable = extern struct {
         inline for (&.{ indices.level_4, indices.level_3, indices.level_2 }) |page_index| {
             const page = page_table.entries[page_index];
 
-            if (!page.present) return;
+            if (!page.present) {
+                return;
+            }
 
-            if (page.huge) @panic("huge pages are not implemented");
+            if (page.huge) {
+                @panic("huge pages are not implemented");
+            }
 
             page_table = page.getTable();
         }
@@ -157,10 +163,10 @@ pub const PageTable = extern struct {
     /// Map the kernel entries into the page table
     pub fn mapKernel(self: *PageTable) void {
         for (256..512) |i| {
-            const base_entry = kernel_page_table.entries[i];
+            const kernel_page = kernel_page_table.entries[i];
 
-            if (base_entry.present) {
-                self.entries[i] = base_entry;
+            if (kernel_page.present) {
+                self.entries[i] = kernel_page;
             }
         }
     }
