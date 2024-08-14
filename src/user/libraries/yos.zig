@@ -54,27 +54,6 @@ pub const keyboard = struct {
     }
 };
 
-pub const memory = struct {
-    pub fn allocator() std.mem.Allocator {
-        return std.mem.Allocator{
-            .ptr = undefined,
-            .vtable = &.{
-                .alloc = &alloc,
-                .resize = std.mem.Allocator.noResize,
-                .free = &free,
-            },
-        };
-    }
-
-    fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
-        return @ptrFromInt(syscall1(.alloc, bytes_len));
-    }
-
-    fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
-        _ = syscall2(.free, @intFromPtr(bytes.ptr), bytes.len);
-    }
-};
-
 pub fn exit(status: u8) noreturn {
     _ = syscall1(.exit, status);
 

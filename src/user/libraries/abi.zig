@@ -13,8 +13,6 @@ pub const Syscode = enum(usize) {
     scrget,
     scrwidth,
     scrheight,
-    alloc,
-    free,
 };
 
 pub const Color = packed struct(u32) {
