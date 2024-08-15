@@ -121,3 +121,70 @@ pub fn scrwidth(context: *arch.cpu.process.Context) void {
 pub fn scrheight(context: *arch.cpu.process.Context) void {
     context.rax = screen.framebuffer.height;
 }
+
+const mmap_min_address = 0x10000;
+
+pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, bytes_len: usize, protection: usize, _: usize) void {
+    const page_table = arch.paging.getActivePageTable();
+
+    const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
+
+    context.rax = 0;
+
+    const bytes = std.heap.page_allocator.alloc(u8, bytes_len) catch return;
+
+    const physical_address = page_table.physicalFromVirtual(@intFromPtr(bytes.ptr)).?;
+
+    var virtual_address: usize = mmap_min_address;
+
+    while (virtual_address < std.math.maxInt(usize)) : (virtual_address += std.mem.page_size) {
+        if (page_table.physicalFromVirtual(virtual_address) == null) retry: {
+            for (1..page_count) |j| {
+                if (page_table.physicalFromVirtual(virtual_address + j * std.mem.page_size) != null) {
+                    virtual_address += j * std.mem.page_size;
+
+                    break :retry;
+                }
+            }
+
+            for (0..page_count) |j| {
+                const offsetted_virtual_address = virtual_address + j * std.mem.page_size;
+                const offsetted_physical_address = physical_address + j * std.mem.page_size;
+
+                page_table.map(
+                    std.heap.page_allocator,
+                    offsetted_virtual_address,
+                    offsetted_physical_address,
+                    .{
+                        .user = true,
+                        .global = false,
+                        .writable = (protection | 2) != 0,
+                        .executable = (protection | 4) != 0,
+                    },
+                ) catch {
+                    return;
+                };
+            }
+
+            context.rax = virtual_address;
+
+            return;
+        }
+
+        if (virtual_address == mmap_min_address and virtual_address_hint != 0) {
+            virtual_address = std.mem.alignForward(usize, virtual_address_hint, std.mem.page_size) - std.mem.page_size;
+        }
+    }
+}
+
+pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) void {
+    const page_table = arch.paging.getActivePageTable();
+
+    const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
+
+    std.heap.page_allocator.free(@as([*]u8, @ptrFromInt(arch.paging.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
+
+    for (0..page_count) |i| {
+        page_table.unmap(bytes_ptr + i * std.mem.page_size);
+    }
+}

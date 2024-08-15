@@ -22,6 +22,12 @@ pub const console = struct {
     fn printImpl(_: void, bytes: []const u8) !usize {
         return write(0, 0, bytes);
     }
+
+    pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
+        print("\npanic: {s}\n", .{message});
+
+        exit(1);
+    }
 };
 
 pub const screen = struct {
@@ -51,6 +57,24 @@ pub const keyboard = struct {
         }
 
         return @bitCast(@as(u8, @intCast(maybe_key)));
+    }
+};
+
+pub const memory = struct {
+    pub const Protection = enum(u8) {
+        none = 0x0,
+        read = 0x1,
+        write = 0x2,
+        execute = 0x4,
+        write_execute = 0x2 | 0x4,
+    };
+
+    pub fn map(virtual_address_hint: usize, bytes_len: usize, protection: Protection) ?[]u8 {
+        return (@as(?[*]u8, @ptrFromInt(syscall4(.mmap, virtual_address_hint, bytes_len, @intFromEnum(protection), 0))) orelse return null)[0..bytes_len];
+    }
+
+    pub fn unmap(bytes: []u8) void {
+        _ = syscall2(.munmap, @intFromPtr(bytes.ptr), bytes.len);
     }
 };
 
