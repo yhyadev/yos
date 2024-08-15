@@ -139,17 +139,17 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
 
     while (virtual_address < std.math.maxInt(usize)) : (virtual_address += std.mem.page_size) {
         if (page_table.physicalFromVirtual(virtual_address) == null) retry: {
-            for (1..page_count) |j| {
-                if (page_table.physicalFromVirtual(virtual_address + j * std.mem.page_size) != null) {
-                    virtual_address += j * std.mem.page_size;
+            for (1..page_count) |i| {
+                if (page_table.physicalFromVirtual(virtual_address + i * std.mem.page_size) != null) {
+                    virtual_address += i * std.mem.page_size;
 
                     break :retry;
                 }
             }
 
-            for (0..page_count) |j| {
-                const offsetted_virtual_address = virtual_address + j * std.mem.page_size;
-                const offsetted_physical_address = physical_address + j * std.mem.page_size;
+            for (0..page_count) |i| {
+                const offsetted_virtual_address = virtual_address + i * std.mem.page_size;
+                const offsetted_physical_address = physical_address + i * std.mem.page_size;
 
                 page_table.map(
                     std.heap.page_allocator,
