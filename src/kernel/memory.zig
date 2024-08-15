@@ -56,25 +56,25 @@ pub const PageAllocator = struct {
 
         if (required_page_count > total_page_count) return null;
 
-        var first_available_page: usize = 0;
-        var available_page_count: usize = 0;
+        var i: usize = 0;
 
-        for (0..total_page_count - 1) |i| {
-            if (!page_bitmap.isSet(i)) {
-                if (available_page_count == 0) first_available_page = i;
+        while (i < total_page_count) : (i += 1) {
+            if (!page_bitmap.isSet(i)) retry: {
+                if (i + required_page_count > total_page_count) return null;
 
-                if (required_page_count == 1 or available_page_count == required_page_count - 1) {
-                    for (first_available_page..i + 1) |j| {
-                        page_bitmap.set(j);
+                for (i..i + required_page_count) |j| {
+                    if (page_bitmap.isSet(j)) {
+                        i += j - i;
+
+                        break :retry;
                     }
-
-                    return memory_region[first_available_page * std.mem.page_size .. (i + 1) * std.mem.page_size].ptr;
                 }
 
-                available_page_count += 1;
-            } else {
-                first_available_page = 0;
-                available_page_count = 0;
+                for (i..i + required_page_count) |j| {
+                    page_bitmap.set(j);
+                }
+
+                return memory_region[i * std.mem.page_size .. (i + 1) * std.mem.page_size].ptr;
             }
         }
 
