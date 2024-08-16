@@ -69,13 +69,36 @@ pub const memory = struct {
         write_execute = 0x2 | 0x4,
     };
 
-    pub fn map(virtual_address_hint: usize, bytes_len: usize, protection: Protection) ?[]u8 {
-        return (@as(?[*]u8, @ptrFromInt(syscall4(.mmap, virtual_address_hint, bytes_len, @intFromEnum(protection), 0))) orelse return null)[0..bytes_len];
+    pub fn map(virtual_address_hint: usize, bytes_len: usize, protection: Protection) ?[*]u8 {
+        return @ptrFromInt(syscall4(.mmap, virtual_address_hint, bytes_len, @intFromEnum(protection), 0));
     }
 
     pub fn unmap(bytes: []u8) void {
         _ = syscall2(.munmap, @intFromPtr(bytes.ptr), bytes.len);
     }
+
+    pub fn allocator() std.mem.Allocator {
+        return std.mem.Allocator{
+            .ptr = undefined,
+            .vtable = &Allocator.vtable,
+        };
+    }
+
+    pub const Allocator = struct {
+        pub const vtable: std.mem.Allocator.VTable = .{
+            .alloc = alloc,
+            .resize = std.mem.Allocator.noResize,
+            .free = free,
+        };
+
+        fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
+            return map(0, bytes_len, .write);
+        }
+
+        fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
+            unmap(bytes);
+        }
+    };
 };
 
 pub fn exit(status: u8) noreturn {
