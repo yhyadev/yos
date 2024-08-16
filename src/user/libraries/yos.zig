@@ -20,7 +20,7 @@ pub const console = struct {
     }
 
     fn printImpl(_: void, bytes: []const u8) !usize {
-        return write(0, 0, bytes);
+        return write(1, 0, bytes);
     }
 
     pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
