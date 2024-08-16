@@ -89,7 +89,7 @@ pub const PageTable = extern struct {
         var page_table = self;
 
         inline for (&.{ indices.level_4, indices.level_3, indices.level_2 }) |page_index| {
-            const page = page_table.entries[page_index];
+            var page = page_table.entries[page_index];
 
             if (!page.present) {
                 const new_page_table = try PageTable.init(allocator);
@@ -105,13 +105,15 @@ pub const PageTable = extern struct {
                     .no_exe = false,
                     .aligned_physical_address = @truncate(getActivePageTable().physicalFromVirtual(@intFromPtr(&new_page_table.entries)).? >> 12),
                 };
+
+                page = page_table.entries[page_index];
             }
 
             if (page.present and page.huge) {
                 @panic("huge pages are not implemented");
             }
 
-            page_table = page_table.entries[page_index].getTable();
+            page_table = page.getTable();
         }
 
         const was_present = page_table.entries[indices.level_1].present;
@@ -169,6 +171,27 @@ pub const PageTable = extern struct {
                 self.entries[i] = kernel_page;
             }
         }
+    }
+
+    /// Check if a virtual address is mapped or not
+    pub fn mapped(self: *PageTable, virtual_address: usize) bool {
+        const indices = Indices.fromAddress(virtual_address);
+
+        var page_table = self;
+
+        var level: usize = 4;
+
+        inline for (&.{ indices.level_4, indices.level_3, indices.level_2 }) |page_index| {
+            const page = page_table.entries[page_index];
+
+            if (!page.present) return false;
+
+            page_table = page.getTable();
+
+            level -= 1;
+        }
+
+        return page_table.entries[indices.level_1].present;
     }
 
     /// Convert virtual addresses to physical addresses by traversing the page table

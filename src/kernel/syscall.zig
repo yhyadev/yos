@@ -138,9 +138,9 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
     var virtual_address: usize = min_virtual_address;
 
     while (virtual_address < std.math.maxInt(usize)) : (virtual_address += std.mem.page_size) {
-        if (page_table.physicalFromVirtual(virtual_address) == null) retry: {
+        if (!page_table.mapped(virtual_address)) retry: {
             for (1..page_count) |i| {
-                if (page_table.physicalFromVirtual(virtual_address + i * std.mem.page_size) != null) {
+                if (page_table.mapped(virtual_address + i * std.mem.page_size)) {
                     virtual_address += i * std.mem.page_size;
 
                     break :retry;
