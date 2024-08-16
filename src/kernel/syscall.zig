@@ -122,8 +122,6 @@ pub fn scrheight(context: *arch.cpu.process.Context) void {
     context.rax = screen.framebuffer.height;
 }
 
-const mmap_min_address = 0x10000;
-
 pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, bytes_len: usize, protection: usize, _: usize) void {
     const page_table = arch.paging.getActivePageTable();
 
@@ -135,7 +133,9 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
 
     const physical_address = page_table.physicalFromVirtual(@intFromPtr(bytes.ptr)).?;
 
-    var virtual_address: usize = mmap_min_address;
+    const min_virtual_address = 0x10000;
+
+    var virtual_address: usize = min_virtual_address;
 
     while (virtual_address < std.math.maxInt(usize)) : (virtual_address += std.mem.page_size) {
         if (page_table.physicalFromVirtual(virtual_address) == null) retry: {
@@ -171,7 +171,7 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
             return;
         }
 
-        if (virtual_address == mmap_min_address and virtual_address_hint != 0) {
+        if (virtual_address == min_virtual_address and virtual_address_hint != 0) {
             virtual_address = std.mem.alignForward(usize, virtual_address_hint, std.mem.page_size) - std.mem.page_size;
         }
     }
