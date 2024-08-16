@@ -158,8 +158,8 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
                     .{
                         .user = true,
                         .global = false,
-                        .writable = (protection | 2) != 0,
-                        .executable = (protection | 4) != 0,
+                        .writable = (protection & 0x2) != 0,
+                        .executable = (protection & 0x4) != 0,
                     },
                 ) catch {
                     return;
