@@ -206,17 +206,6 @@ pub const PageTable = extern struct {
         return (page_table.entries[indices.level_1].aligned_physical_address << 12) + indices.offset;
     }
 
-    /// Check if the page table is valid or not by checking each entry one by one
-    pub fn isValid(self: *PageTable, level: usize) bool {
-        for (self.entries) |page| {
-            if (page.reserved_1 != 0 or page.reserved_2 != 0) return false;
-            if (page.huge) return true; // TODO: Check huge pages
-            if (level > 1 and page.present and !isValid(page.getTable(), level - 1)) return false;
-        }
-
-        return true;
-    }
-
     pub const Modifications = struct {
         writable: ?bool = null,
         executable: ?bool = null,
