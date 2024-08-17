@@ -15,6 +15,8 @@ pub const Syscode = enum(usize) {
     scrheight,
     mmap,
     munmap,
+    mkdir,
+    mkfile,
 };
 
 pub const Color = packed struct(u32) {

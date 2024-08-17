@@ -6,6 +6,7 @@ const higher_half = @import("higher_half.zig");
 const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const stream = @import("stream.zig");
+const tmpfs = @import("fs/tmpfs.zig");
 
 pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
     const buffer = @as([*]u8, @ptrFromInt(buffer_ptr))[0..buffer_len];
@@ -188,4 +189,37 @@ pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) 
     for (0..page_count) |i| {
         page_table.unmap(bytes_ptr + i * std.mem.page_size);
     }
+}
+
+pub fn mkdir(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize) void {
+    const path = @as([*]u8, @ptrFromInt(path_ptr))[0..path_len];
+
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = 0;
+
+    tmpfs.makeDirectory("/", path) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+        error.NotFound => result.* = -1,
+        error.NotDirectory => result.* = -2,
+        error.PathNotAbsolute => result.* = -3,
+    };
+}
+
+pub fn mkfile(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize) void {
+    const path = @as([*]u8, @ptrFromInt(path_ptr))[0..path_len];
+
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = 0;
+
+    const empty_buffer: [0]u8 = undefined;
+    var empty_stream = std.io.fixedBufferStream(&empty_buffer);
+
+    tmpfs.makeFile("/", path, 0, empty_stream.reader()) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+        error.NotFound => result.* = -1,
+        error.NotDirectory => result.* = -2,
+        error.PathNotAbsolute => result.* = -3,
+    };
 }

@@ -46,7 +46,15 @@ const File = struct {
 
                 var written: usize = 0;
 
-                if (offset > content.len) return written;
+                if (offset >= content.len or buffer.len > content.len - offset) {
+                    const new_content_len = content.len + offset + buffer.len;
+
+                    if (!backing_allocator.resize(content.*, new_content_len)) {
+                        content.* = backing_allocator.realloc(content.*, new_content_len) catch |err| switch (err) {
+                            error.OutOfMemory => @panic("out of memory"),
+                        };
+                    }
+                }
 
                 for (offset..content.len, 0..) |i, j| {
                     if (j >= content.len) return written;
@@ -105,6 +113,7 @@ pub fn makeFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) M
 
     if (size != 0) {
         const content = try backing_allocator.alloc(u8, size);
+
         _ = try reader.readAll(content);
 
         content_on_heap.* = content;

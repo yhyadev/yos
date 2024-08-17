@@ -138,3 +138,11 @@ pub fn fork() usize {
 pub fn execv(argv: []const [*:0]const u8) isize {
     return @bitCast(syscall2(.execv, @intFromPtr(argv.ptr), argv.len));
 }
+
+pub fn mkdir(path: []const u8) isize {
+    return @bitCast(syscall2(.mkdir, @intFromPtr(path.ptr), path.len));
+}
+
+pub fn mkfile(path: []const u8) isize {
+    return @bitCast(syscall2(.mkfile, @intFromPtr(path.ptr), path.len));
+}
