@@ -25,6 +25,11 @@ pub const State = struct {
     }
 };
 
+/// Draw a rectangle with the dimensions being the screen width and height respectively
+pub fn clearBackground(color: abi.Color) void {
+    drawRectangle(0, 0, state.width, state.height, color);
+}
+
 /// Draw a rectangle with x and y being the top left corner
 pub fn drawRectangle(x: usize, y: usize, width: usize, height: usize, color: abi.Color) void {
     const back_buffer = state.getBackBuffer();
