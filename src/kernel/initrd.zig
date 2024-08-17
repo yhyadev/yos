@@ -1,7 +1,7 @@
 const std = @import("std");
 const limine = @import("limine");
 
-const tarfs = @import("fs/tarfs.zig");
+const tmpfs = @import("fs/tmpfs.zig");
 
 export var module_request: limine.ModuleRequest = .{};
 
@@ -31,5 +31,5 @@ pub fn init() void {
         @panic("could not find initial ramdisk in limine modules");
     }
 
-    tarfs.mount("/", initrd_module.data()) catch @panic("could not mount the initial ramdisk");
+    tmpfs.tar.unpack("/", initrd_module.data()) catch @panic("could not unpack the initial ramdisk");
 }

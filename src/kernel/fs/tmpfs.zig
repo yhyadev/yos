@@ -1,8 +1,7 @@
-//! Tar File System
+//! Temporary File System
 //!
-//! A read-only file system which uses the standard tar implementation by Zig
-//! This is intended to be used for initial ramdisk because the init ramdisk is a tar archive
-//! that is loaded with the kernel by limine bootloader
+//! A file system that only lives on the ram stick and therefore would be gone instantly
+//! after rebooting
 
 const std = @import("std");
 
@@ -41,6 +40,26 @@ const Directory = struct {
 
 const File = struct {
     const vtable: vfs.FileSystem.Node.VTable = .{
+        .write = struct {
+            fn write(node: *vfs.FileSystem.Node, offset: u64, buffer: []const u8) u64 {
+                const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
+
+                var written: usize = 0;
+
+                if (offset > content.len) return written;
+
+                for (offset..content.len, 0..) |i, j| {
+                    if (j >= content.len) return written;
+
+                    content.*[i] = buffer[j];
+
+                    written += 1;
+                }
+
+                return written;
+            }
+        }.write,
+
         .read = struct {
             fn read(node: *vfs.FileSystem.Node, offset: u64, buffer: []u8) u64 {
                 const content: *[]u8 = @ptrCast(@alignCast(node.ctx));
@@ -67,45 +86,9 @@ const File = struct {
     };
 };
 
-var tar_file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
-var tar_link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+const MakeError = vfs.OpenAbsoluteError;
 
-const MountError = vfs.FileSystem.Node.MountError || CreateError;
-
-pub fn mount(path: []const u8, tar_data: []u8) MountError!void {
-    const directory = try directories.addOne(backing_allocator);
-
-    directory.* = .{
-        .node = .{
-            .name = std.fs.path.basename(path),
-            .tag = .directory,
-            .ctx = directory,
-            .vtable = &Directory.vtable,
-        },
-    };
-
-    try directory.node.mount(path);
-
-    var tar_file_stream = std.io.fixedBufferStream(tar_data);
-
-    var tar_iterator = std.tar.iterator(tar_file_stream.reader(), .{
-        .file_name_buffer = &tar_file_name_buffer,
-        .link_name_buffer = &tar_link_name_buffer,
-    });
-
-    while (tar_iterator.next() catch @panic("could not parse tar file")) |tar_entry| {
-        switch (tar_entry.kind) {
-            .file => try createFile(path, tar_entry.name, tar_entry.size, tar_entry.reader()),
-            .directory => try createDirectory(path, tar_entry.name),
-
-            .sym_link => @panic("symbolic links should not be in the tar file"),
-        }
-    }
-}
-
-const CreateError = vfs.OpenAbsoluteError;
-
-fn createFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) CreateError!void {
+pub fn makeFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) MakeError!void {
     const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ cwd, path });
 
     const parent_path = std.fs.path.dirname(resolved_path) orelse "/";
@@ -137,9 +120,9 @@ fn createFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) Cre
     };
 }
 
-fn createDirectory(cwd: []const u8, path: []const u8) CreateError!void {
-    // The root file is already created
-    if (std.mem.eql(u8, path, "./")) return;
+pub fn makeDirectory(cwd: []const u8, path: []const u8) MakeError!void {
+    // The root directory is already created
+    if (std.mem.eql(u8, path, "./") and std.mem.eql(u8, cwd, "/")) return;
 
     const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ cwd, path });
 
@@ -163,8 +146,51 @@ fn createDirectory(cwd: []const u8, path: []const u8) CreateError!void {
     };
 }
 
+/// Support for unpacking a tar file into the temporary file system
+pub const tar = struct {
+    var file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+    var link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
+
+    const UnpackError = MakeError;
+
+    pub fn unpack(path: []const u8, tar_data: []u8) UnpackError!void {
+        var tar_file_stream = std.io.fixedBufferStream(tar_data);
+
+        var tar_iterator = std.tar.iterator(tar_file_stream.reader(), .{
+            .file_name_buffer = &file_name_buffer,
+            .link_name_buffer = &link_name_buffer,
+        });
+
+        while (tar_iterator.next() catch @panic("could not parse tar file")) |tar_entry| {
+            switch (tar_entry.kind) {
+                .file => try makeFile(path, tar_entry.name, tar_entry.size, tar_entry.reader()),
+                .directory => try makeDirectory(path, tar_entry.name),
+
+                .sym_link => @panic("symbolic links should not be in the tar file"),
+            }
+        }
+    }
+};
+
 pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
     backing_allocator = allocator;
 
-    try vfs.installFileSystem(.{ .name = "tarfs" });
+    const root = try directories.addOne(backing_allocator);
+
+    root.* = .{
+        .node = .{
+            .name = "",
+            .tag = .directory,
+            .ctx = root,
+            .vtable = &Directory.vtable,
+        },
+    };
+
+    root.node.mount("/") catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+
+        else => unreachable,
+    };
+
+    try vfs.installFileSystem(.{ .name = "tmpfs" });
 }

@@ -19,7 +19,7 @@ const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const smp = @import("smp.zig");
 const devfs = @import("fs/devfs.zig");
-const tarfs = @import("fs/tarfs.zig");
+const tmpfs = @import("fs/tmpfs.zig");
 const vfs = @import("fs/vfs.zig");
 const acpi = @import("drivers/acpi.zig");
 const ps2 = @import("drivers/keyboard/ps2.zig");
@@ -65,8 +65,8 @@ fn stage1() noreturn {
         // Initialize virtual file system
         vfs.init(allocator);
 
-        // Initialize tar file system
-        tarfs.init(allocator) catch |err| switch (err) {
+        // Initialize temporary file system
+        tmpfs.init(allocator) catch |err| switch (err) {
             error.OutOfMemory => @panic("out of memory"),
         };
 
