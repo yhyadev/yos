@@ -1,19 +1,18 @@
 const yos = @import("yos");
 
-fn gui() void {
-    const pid = yos.fork();
+const display = @import("display.zig");
+const loop = @import("loop.zig");
 
-    if (pid == 0) {
-        const result = yos.execv(&.{"/usr/bin/gui"});
-
-        if (result != 0) {
-            yos.console.print("could not initialize gui: {}\n", .{result});
-        }
-    }
-}
+pub const panic = yos.console.panic;
 
 export fn _start() noreturn {
-    gui();
+    const allocator = yos.memory.allocator();
 
-    while (true) {}
+    // Initialize the display we need to use instead of putting colors on the screen manually
+    display.init(allocator) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+    };
+
+    // Start the event loop after initializing all required features
+    loop.start();
 }
