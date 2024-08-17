@@ -1,13 +1,11 @@
-const core = @import("core");
+//! Y Window Manager
 
-const display = @import("display.zig");
-const loop = @import("loop.zig");
+const std = @import("std");
 
-pub const panic = core.console.panic;
+const display = @import("wm/display.zig");
+const loop = @import("wm/loop.zig");
 
-export fn _start() noreturn {
-    const allocator = core.memory.allocator();
-
+pub fn start(allocator: std.mem.Allocator) noreturn {
     // Initialize the display we need to use instead of putting colors on the screen manually
     display.init(allocator) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
