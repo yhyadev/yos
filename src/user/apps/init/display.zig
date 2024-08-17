@@ -1,11 +1,11 @@
 //! Display
 //!
-//! A wrapper around the functionality of yos screen, implements double buffering
+//! A wrapper around the functionality of the screen, implements double buffering
 //! and other ways of optimizing the user interface
 
 const std = @import("std");
 const abi = @import("abi");
-const yos = @import("yos");
+const core = @import("core");
 
 pub var state: State = .{};
 
@@ -44,14 +44,14 @@ pub fn synchronize() void {
         if (!std.meta.eql(front_color.*, back_color)) {
             front_color.* = back_color;
 
-            yos.screen.put(i % state.width, @divFloor(i, state.width), back_color);
+            core.screen.put(i % state.width, @divFloor(i, state.width), back_color);
         }
     }
 }
 
 pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
-    state.width = yos.screen.width();
-    state.height = yos.screen.height();
+    state.width = core.screen.width();
+    state.height = core.screen.height();
 
     state.buffer = try allocator.alloc(abi.Color, state.width * state.height * 2);
 

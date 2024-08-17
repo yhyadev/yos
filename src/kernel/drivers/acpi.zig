@@ -5,7 +5,7 @@
 const std = @import("std");
 const limine = @import("limine");
 
-const arch = @import("arch.zig");
+const higher_half = @import("../higher_half.zig");
 
 export var rsdp_request: limine.RsdpRequest = .{};
 
@@ -107,7 +107,7 @@ pub const Madt = extern struct {
 
         while (true) {
             if (pointer[0] == 1) {
-                return arch.paging.virtualFromPhysical(std.mem.readInt(u32, pointer[4..8], .little));
+                return higher_half.virtualFromPhysical(std.mem.readInt(u32, pointer[4..8], .little));
             } else {
                 pointer += pointer[1];
             }
@@ -140,7 +140,7 @@ pub fn init() void {
                 @panic("bad rsdp signature");
             }
 
-            rsdt = @ptrFromInt(arch.paging.virtualFromPhysical(rsdp.rsdt_address));
+            rsdt = @ptrFromInt(higher_half.virtualFromPhysical(rsdp.rsdt_address));
 
             if (!std.mem.eql(u8, "RSDT", &rsdt.header.signature)) {
                 @panic("bad rsdt signature");
@@ -149,12 +149,12 @@ pub fn init() void {
             const rsdt_entry_count = (rsdt.header.length - @sizeOf(SdtHeader)) / 4;
 
             for (0..rsdt_entry_count) |i| {
-                const rsdt_entry: *anyopaque = @ptrFromInt(arch.paging.virtualFromPhysical(rsdt.entries[i]));
+                const rsdt_entry: *anyopaque = @ptrFromInt(higher_half.virtualFromPhysical(rsdt.entries[i]));
 
                 if (std.mem.eql(u8, "FACP", &@as(*SdtHeader, @ptrCast(rsdt_entry)).signature)) {
                     fadt = @ptrCast(rsdt_entry);
 
-                    dsdt = @ptrFromInt(arch.paging.virtualFromPhysical(fadt.?.dsdt));
+                    dsdt = @ptrFromInt(higher_half.virtualFromPhysical(fadt.?.dsdt));
 
                     if (!std.mem.eql(u8, "DSDT", &dsdt.?.header.signature)) {
                         @panic("bad dsdt signature");

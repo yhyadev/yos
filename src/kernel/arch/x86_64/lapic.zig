@@ -5,7 +5,7 @@
 const std = @import("std");
 
 const cpu = @import("cpu.zig");
-const paging = @import("paging.zig");
+const higher_half = @import("../../higher_half.zig");
 const smp = @import("../../smp.zig");
 
 pub const Lapic = struct {
@@ -43,7 +43,7 @@ pub fn getLapic() Lapic {
 pub fn init() void {
     const core_id = cpu.core.Info.read().id;
 
-    lapics[core_id].base = paging.virtualFromPhysical(cpu.registers.ModelSpecific.read(.apic_base) & 0xFFFFF000);
+    lapics[core_id].base = higher_half.virtualFromPhysical(cpu.registers.ModelSpecific.read(.apic_base) & 0xFFFFF000);
 
     cpu.registers.ModelSpecific.write(.apic_base, cpu.registers.ModelSpecific.read(.apic_base) | (@as(u64, 1) << 11));
 

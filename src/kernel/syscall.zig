@@ -2,6 +2,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 const arch = @import("arch.zig");
+const higher_half = @import("higher_half.zig");
 const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const stream = @import("stream.zig");
@@ -182,7 +183,7 @@ pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) 
 
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
-    std.heap.page_allocator.free(@as([*]u8, @ptrFromInt(arch.paging.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
+    std.heap.page_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
 
     for (0..page_count) |i| {
         page_table.unmap(bytes_ptr + i * std.mem.page_size);

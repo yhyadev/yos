@@ -5,6 +5,7 @@
 const std = @import("std");
 
 const arch = @import("arch.zig");
+const higher_half = @import("higher_half.zig");
 const vfs = @import("fs/vfs.zig");
 
 var backing_allocator: std.mem.Allocator = undefined;
@@ -291,11 +292,11 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 
         const StackPages = *[user_stack_page_count * std.mem.page_size]u8;
 
-        const parent_stack_pages: StackPages = @ptrFromInt(arch.paging.virtualFromPhysical(
+        const parent_stack_pages: StackPages = @ptrFromInt(higher_half.virtualFromPhysical(
             parent_process.page_table.physicalFromVirtual(user_stack_virtual_address).?,
         ));
 
-        const child_stack_pages: StackPages = @ptrFromInt(arch.paging.virtualFromPhysical(
+        const child_stack_pages: StackPages = @ptrFromInt(higher_half.virtualFromPhysical(
             child_process.page_table.physicalFromVirtual(user_stack_virtual_address).?,
         ));
 

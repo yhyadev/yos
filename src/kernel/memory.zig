@@ -5,7 +5,7 @@
 const std = @import("std");
 const limine = @import("limine");
 
-const arch = @import("arch.zig");
+const higher_half = @import("higher_half.zig");
 
 const SpinLock = @import("locks/SpinLock.zig");
 
@@ -116,7 +116,7 @@ pub fn init() void {
 
     for (memory_map_respone.entries()) |memory_map_entry| {
         if (memory_map_entry.kind == .usable and (best_memory_region == null or memory_map_entry.length > best_memory_region.?.len)) {
-            best_memory_region = @as([*]u8, @ptrFromInt(arch.paging.virtualFromPhysical(memory_map_entry.base)))[0..memory_map_entry.length];
+            best_memory_region = @as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(memory_map_entry.base)))[0..memory_map_entry.length];
         }
     }
 

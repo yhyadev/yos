@@ -3,7 +3,8 @@
 //! The successor of Programmable Interrupt Controller
 
 const std = @import("std");
-const acpi = @import("../../acpi.zig");
+
+const acpi = @import("../../drivers/acpi.zig");
 
 var address: usize = 0xFEC00000;
 

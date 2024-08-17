@@ -96,13 +96,13 @@ pub fn build(b: *std.Build) !void {
         {
             const user_apps = try b.build_root.handle.openDir("src/user/apps", .{ .iterate = true });
 
-            const yos_module = b.createModule(.{
-                .root_source_file = b.path("src/user/libraries/yos.zig"),
+            const core_module = b.createModule(.{
+                .root_source_file = b.path("src/user/libraries/core.zig"),
                 .target = user_apps_target,
                 .optimize = .ReleaseSmall,
             });
 
-            yos_module.addImport("abi", abi_module);
+            core_module.addImport("abi", abi_module);
 
             var user_app_iterator = user_apps.iterate();
 
@@ -114,7 +114,7 @@ pub fn build(b: *std.Build) !void {
                     .optimize = .ReleaseSmall,
                 });
 
-                user_app_exe.root_module.addImport("yos", yos_module);
+                user_app_exe.root_module.addImport("core", core_module);
                 user_app_exe.root_module.addImport("abi", abi_module);
 
                 switch (cpu_arch) {

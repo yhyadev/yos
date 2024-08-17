@@ -32,7 +32,7 @@ pub const PageTable = extern struct {
         /// entries, which point to physical frames of address space instead of a page
         /// table
         pub inline fn getTable(self: Entry) *PageTable {
-            return @ptrFromInt(virtualFromPhysical(self.aligned_physical_address << 12));
+            return @ptrFromInt(higher_half.virtualFromPhysical(self.aligned_physical_address << 12));
         }
     };
 
@@ -314,15 +314,9 @@ pub const Indices = struct {
     }
 };
 
-/// Convert physical addresses to virtual addresses by adding the higher half direct
-/// map offset
-pub inline fn virtualFromPhysical(physical: u64) u64 {
-    return physical + higher_half.hhdm_offset;
-}
-
 /// Get the active page table by reading the control register number 3
 pub inline fn getActivePageTable() *PageTable {
-    return @ptrFromInt(virtualFromPhysical(cpu.registers.Cr3.read()));
+    return @ptrFromInt(higher_half.virtualFromPhysical(cpu.registers.Cr3.read()));
 }
 
 /// Set the active page table by writing to the control register number 3

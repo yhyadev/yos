@@ -9,7 +9,6 @@ pub const os = @import("os.zig");
 
 pub const panic = crash.panic;
 
-const acpi = @import("acpi.zig");
 const arch = @import("arch.zig");
 const console = @import("console.zig");
 const crash = @import("crash.zig");
@@ -22,6 +21,7 @@ const smp = @import("smp.zig");
 const devfs = @import("fs/devfs.zig");
 const tarfs = @import("fs/tarfs.zig");
 const vfs = @import("fs/vfs.zig");
+const acpi = @import("drivers/acpi.zig");
 const ps2 = @import("drivers/keyboard/ps2.zig");
 
 export var base_revision: limine.BaseRevision = .{ .revision = 2 };

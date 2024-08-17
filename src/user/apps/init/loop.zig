@@ -3,7 +3,6 @@
 //! The event loop that runs all the time, contains key mapping to actions and other functionalities
 
 const abi = @import("abi");
-const yos = @import("yos");
 
 const display = @import("display.zig");
 

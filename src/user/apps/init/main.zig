@@ -1,12 +1,12 @@
-const yos = @import("yos");
+const core = @import("core");
 
 const display = @import("display.zig");
 const loop = @import("loop.zig");
 
-pub const panic = yos.console.panic;
+pub const panic = core.console.panic;
 
 export fn _start() noreturn {
-    const allocator = yos.memory.allocator();
+    const allocator = core.memory.allocator();
 
     // Initialize the display we need to use instead of putting colors on the screen manually
     display.init(allocator) catch |err| switch (err) {
