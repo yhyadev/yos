@@ -89,10 +89,12 @@ pub const PageTable = extern struct {
         var page_table = self;
 
         inline for (&.{ indices.level_4, indices.level_3, indices.level_2 }) |page_index| {
-            var page = page_table.entries[page_index];
+            const page = page_table.entries[page_index];
 
             if (!page.present) {
                 const new_page_table = try PageTable.init(allocator);
+
+                const page_table_physical_address = getActivePageTable().physicalFromVirtual(@intFromPtr(new_page_table)).?;
 
                 page_table.entries[page_index] = .{
                     .present = true,
@@ -103,17 +105,17 @@ pub const PageTable = extern struct {
                     .huge = false,
                     .global = false,
                     .no_exe = false,
-                    .aligned_physical_address = @truncate(getActivePageTable().physicalFromVirtual(@intFromPtr(&new_page_table.entries)).? >> 12),
+                    .aligned_physical_address = @truncate(page_table_physical_address >> 12),
                 };
 
-                page = page_table.entries[page_index];
-            }
+                page_table = new_page_table;
+            } else {
+                if (page.huge) {
+                    @panic("huge pages are not implemented");
+                }
 
-            if (page.present and page.huge) {
-                @panic("huge pages are not implemented");
+                page_table = page.getTable();
             }
-
-            page_table = page.getTable();
         }
 
         const was_present = page_table.entries[indices.level_1].present;
@@ -211,7 +213,7 @@ pub const PageTable = extern struct {
                 switch (level) {
                     inline 1, 4 => |i| @panic(std.fmt.comptimePrint("PS flag set on a level {} page", .{i})),
 
-                    2 => return (page.aligned_physical_address << 21) + (@as(usize, indices.level_1) << 12) + indices.offset,
+                    2 => return (page.aligned_physical_address << 12) + (@as(usize, indices.level_1) << 12) + indices.offset,
 
                     3 => @panic("1 GiB level 3 pages is not supported"),
 
