@@ -29,6 +29,7 @@ const Process = struct {
     parent: ?*Process = null,
     children: std.ArrayListUnmanaged(?*Process) = .{},
     files: std.ArrayListUnmanaged(?*vfs.FileSystem.Node) = .{},
+    env: std.StringHashMapUnmanaged([]const u8) = .{},
 
     /// Load the elf segments and user stack, this modifies the context respectively
     fn loadElf(self: *Process, elf_content: []const u8) !void {
@@ -159,6 +160,18 @@ const Process = struct {
         }
     }
 
+    /// Put into the environment using a pair instead of key to value structure
+    pub fn putEnvPair(self: *Process, env_pair: []const u8) !void {
+        const scoped_allocator = self.arena.allocator();
+
+        var env_pair_iterator = std.mem.splitSequence(u8, env_pair, "=");
+
+        const env_key = env_pair_iterator.next() orelse return error.BadEnvPair;
+        const env_value = env_pair_iterator.next() orelse return error.BadEnvPair;
+
+        try self.env.put(scoped_allocator, env_key, env_value);
+    }
+
     /// Pass the control to underlying code that the process hold
     pub fn run(self: Process) noreturn {
         arch.paging.setActivePageTable(self.page_table);
@@ -285,7 +298,9 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 
     const scoped_allocator = child_process.arena.allocator();
 
-    child_process.page_table = try parent_process.page_table.dupe(scoped_allocator);
+    child_process.page_table = try parent_process.page_table.clone(scoped_allocator);
+
+    child_process.env = try parent_process.env.clone(scoped_allocator);
 
     {
         try Process.mapUserStack(child_process.page_table, scoped_allocator);
@@ -321,8 +336,9 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 }
 
 /// Replace the current running context with a new context that is retrieved from an
-/// elf file loaded from path in argv[0]
-pub fn execv(context: *arch.cpu.process.Context, argv: []const [*:0]const u8) !void {
+/// elf file loaded from path in argv[0], and initialize the environment variables using
+/// the provided list
+pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, env: []const [*:0]const u8) !void {
     const process = maybe_process.?;
 
     const scoped_allocator = process.arena.allocator();
@@ -340,6 +356,10 @@ pub fn execv(context: *arch.cpu.process.Context, argv: []const [*:0]const u8) !v
         _ = elf_file.read(0, elf_content);
 
         try process.loadElf(elf_content);
+    }
+
+    for (env) |env_pair_ptr| {
+        try process.putEnvPair(std.mem.span(env_pair_ptr));
     }
 
     process.files.clearRetainingCapacity();

@@ -20,13 +20,13 @@ pub const console = struct {
     }
 
     fn printImpl(_: void, bytes: []const u8) !usize {
-        return write(1, 0, bytes);
+        return fs.write(1, 0, bytes);
     }
 
     pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
         print("\npanic: {s}\n", .{message});
 
-        exit(1);
+        process.exit(1);
     }
 };
 
@@ -101,48 +101,62 @@ pub const memory = struct {
     };
 };
 
-pub fn exit(status: u8) noreturn {
-    _ = syscall1(.exit, status);
+pub const env = struct {
+    pub fn put(env_pair: []const u8) isize {
+        return @intCast(syscall2(.envput, @intFromPtr(env_pair.ptr), env_pair.len));
+    }
 
-    unreachable;
-}
+    pub fn get(env_key: []const u8) ?[*:0]u8 {
+        return @ptrFromInt(syscall2(.envget, @intFromPtr(env_key.ptr), env_key.len));
+    }
+};
 
-pub fn write(fd: usize, offset: usize, buffer: []const u8) usize {
-    return syscall4(.write, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
-}
+pub const process = struct {
+    pub fn id() usize {
+        return syscall0(.getpid);
+    }
 
-pub fn read(fd: usize, offset: usize, buffer: []u8) usize {
-    return syscall4(.read, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
-}
+    pub fn exit(status: u8) noreturn {
+        _ = syscall1(.exit, status);
 
-pub fn open(path: []const u8) isize {
-    return @bitCast(syscall2(.open, @intFromPtr(path.ptr), path.len));
-}
+        unreachable;
+    }
 
-pub fn close(fd: usize) isize {
-    return @bitCast(syscall2(.close, fd));
-}
+    pub fn kill(pid: usize) void {
+        _ = syscall1(.kill, pid);
+    }
 
-pub fn getpid() usize {
-    return syscall0(.getpid);
-}
+    pub fn fork() usize {
+        return syscall0(.fork);
+    }
 
-pub fn kill(pid: usize) void {
-    _ = syscall1(.kill, pid);
-}
+    pub fn execve(argv: []const [*:0]const u8, envp: []const [*:0]const u8) isize {
+        return @bitCast(syscall4(.execve, @intFromPtr(argv.ptr), argv.len, @intFromPtr(envp.ptr), envp.len));
+    }
+};
 
-pub fn fork() usize {
-    return syscall0(.fork);
-}
+pub const fs = struct {
+    pub fn open(path: []const u8) isize {
+        return @bitCast(syscall2(.open, @intFromPtr(path.ptr), path.len));
+    }
 
-pub fn execv(argv: []const [*:0]const u8) isize {
-    return @bitCast(syscall2(.execv, @intFromPtr(argv.ptr), argv.len));
-}
+    pub fn close(fd: usize) isize {
+        return @bitCast(syscall2(.close, fd));
+    }
 
-pub fn mkdir(path: []const u8) isize {
-    return @bitCast(syscall2(.mkdir, @intFromPtr(path.ptr), path.len));
-}
+    pub fn write(fd: usize, offset: usize, buffer: []const u8) usize {
+        return syscall4(.write, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
+    }
 
-pub fn mkfile(path: []const u8) isize {
-    return @bitCast(syscall2(.mkfile, @intFromPtr(path.ptr), path.len));
-}
+    pub fn read(fd: usize, offset: usize, buffer: []u8) usize {
+        return syscall4(.read, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
+    }
+
+    pub fn mkdir(path: []const u8) isize {
+        return @bitCast(syscall2(.mkdir, @intFromPtr(path.ptr), path.len));
+    }
+
+    pub fn mkfile(path: []const u8) isize {
+        return @bitCast(syscall2(.mkfile, @intFromPtr(path.ptr), path.len));
+    }
+};

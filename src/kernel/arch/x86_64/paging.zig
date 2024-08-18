@@ -44,13 +44,13 @@ pub const PageTable = extern struct {
         return new_page_table;
     }
 
-    /// Duplicate the page table, which expects that it is L4
-    pub fn dupe(self: *PageTable, allocator: std.mem.Allocator) std.mem.Allocator.Error!*PageTable {
-        return self.dupeLevel(allocator, 4);
+    /// Clone the page table, which expects that it is level 4
+    pub fn clone(self: *PageTable, allocator: std.mem.Allocator) std.mem.Allocator.Error!*PageTable {
+        return self.cloneLevel(allocator, 4);
     }
 
-    /// Duplicate the page table, which expects that it is the same leve you provided
-    pub fn dupeLevel(self: *PageTable, allocator: std.mem.Allocator, level: usize) std.mem.Allocator.Error!*PageTable {
+    /// Clone the page table, which expects that it is the same level you provided
+    pub fn cloneLevel(self: *PageTable, allocator: std.mem.Allocator, level: usize) std.mem.Allocator.Error!*PageTable {
         const new_page_table = try PageTable.init(allocator);
 
         new_page_table.mapKernel();
@@ -61,7 +61,7 @@ pub const PageTable = extern struct {
             new_page_table.entries[i] = page;
 
             if (level > 1 and page.present) {
-                const child_page = try page.getTable().dupeLevel(allocator, level - 1);
+                const child_page = try page.getTable().cloneLevel(allocator, level - 1);
 
                 new_page_table.entries[i].aligned_physical_address = @truncate(getActivePageTable().physicalFromVirtual(@intFromPtr(child_page)).? >> 12);
             }

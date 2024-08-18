@@ -87,19 +87,21 @@ pub fn fork(context: *arch.cpu.process.Context) void {
     };
 }
 
-pub fn execv(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usize) void {
+pub fn execve(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usize, env_ptr: usize, env_len: usize) void {
     const argv = @as([*]const [*:0]const u8, @ptrFromInt(argv_ptr))[0..argv_len];
+    const env = @as([*]const [*:0]const u8, @ptrFromInt(env_ptr))[0..env_len];
 
     const result: *isize = @ptrCast(&context.rax);
 
     result.* = 0;
 
-    scheduler.execv(context, argv) catch |err| switch (err) {
+    scheduler.execve(context, argv, env) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
         error.NotFound => result.* = -1,
         error.NotDirectory => result.* = -2,
         error.PathNotAbsolute => result.* = -3,
         error.BadElf => result.* = -4,
+        error.BadEnvPair => result.* = -5,
     };
 }
 
@@ -124,14 +126,70 @@ pub fn scrheight(context: *arch.cpu.process.Context) void {
     context.rax = screen.framebuffer.height;
 }
 
+pub fn envput(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_len: usize) void {
+    const env_pair = @as([*]const u8, @ptrFromInt(env_pair_ptr))[0..env_pair_len];
+
+    const process = scheduler.maybe_process.?;
+
+    const result: *isize = @ptrCast(&context.rax);
+
+    result.* = 0;
+
+    process.putEnvPair(env_pair) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+        error.BadEnvPair => result.* = -1,
+    };
+}
+
+pub fn envget(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_len: usize) void {
+    const env_key = @as([*]const u8, @ptrFromInt(env_key_ptr))[0..env_key_len];
+
+    const process = scheduler.maybe_process.?;
+
+    context.rax = 0;
+
+    const env_value = process.env.get(env_key) orelse return;
+
+    const env_value_z = user_allocator.dupeZ(u8, env_value) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+    };
+
+    context.rax = @intCast(@intFromPtr(env_value_z.ptr));
+}
+
+const user_allocator: std.mem.Allocator = .{
+    .ptr = undefined,
+    .vtable = &struct {
+        pub const vtable: std.mem.Allocator.VTable = .{
+            .alloc = alloc,
+            .resize = std.mem.Allocator.noResize,
+            .free = free,
+        };
+
+        fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
+            var context: arch.cpu.process.Context = .{};
+            mmap(&context, 0, bytes_len, 2, 0);
+            return @ptrFromInt(context.rax);
+        }
+
+        fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
+            munmap(undefined, @intFromPtr(bytes.ptr), bytes.len);
+        }
+    }.vtable,
+};
+
 pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, bytes_len: usize, protection: usize, _: usize) void {
+    const process = scheduler.maybe_process.?;
+
+    const scoped_allocator = process.arena.allocator();
+
     const page_table = arch.paging.getActivePageTable();
 
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
     context.rax = 0;
 
-    const bytes = std.heap.page_allocator.alloc(u8, bytes_len) catch return;
+    const bytes = scoped_allocator.alignedAlloc(u8, std.mem.page_size, bytes_len) catch return;
 
     const physical_address = page_table.physicalFromVirtual(@intFromPtr(bytes.ptr)).?;
 
@@ -154,7 +212,7 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
                 const offsetted_physical_address = physical_address + i * std.mem.page_size;
 
                 page_table.map(
-                    std.heap.page_allocator,
+                    scoped_allocator,
                     offsetted_virtual_address,
                     offsetted_physical_address,
                     .{
@@ -180,11 +238,15 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
 }
 
 pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) void {
+    const process = scheduler.maybe_process.?;
+
+    const scoped_allocator = process.arena.allocator();
+
     const page_table = arch.paging.getActivePageTable();
 
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
-    std.heap.page_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
+    scoped_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
 
     for (0..page_count) |i| {
         page_table.unmap(bytes_ptr + i * std.mem.page_size);
