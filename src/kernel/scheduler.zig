@@ -279,25 +279,21 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 
 /// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
 pub fn kill(pid: usize) void {
-    for (processes.items) |*process| {
-        if (process.id == pid) {
-            process.stop();
+    const process = &processes.items[pid - 1];
 
-            if (process.parent) |parent_process| {
-                for (parent_process.children.items) |*maybe_child| {
-                    if (maybe_child.* == process) {
-                        maybe_child.* = null;
-                    }
-                }
+    process.stop();
+
+    if (process.parent) |parent_process| {
+        for (parent_process.children.items) |*maybe_child| {
+            if (maybe_child.* == process) {
+                maybe_child.* = null;
             }
+        }
+    }
 
-            for (process.children.items) |maybe_child| {
-                if (maybe_child) |child| {
-                    kill(child.id);
-                }
-            }
-
-            break;
+    for (process.children.items) |maybe_child| {
+        if (maybe_child) |child| {
+            kill(child.id);
         }
     }
 }
