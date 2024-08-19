@@ -15,7 +15,7 @@ var processes: std.ArrayListUnmanaged(Process) = .{};
 var stopped_processes: std.ArrayListUnmanaged(*Process) = .{};
 var process_queue: std.fifo.LinearFifo(*Process, .Dynamic) = undefined;
 
-const reschedule_ticks = 0x100000;
+const reschedule_ticks = 0x22F8E;
 
 const user_stack_page_count = 16;
 const user_stack_virtual_address = 0x10002000;
