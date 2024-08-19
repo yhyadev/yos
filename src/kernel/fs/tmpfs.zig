@@ -94,7 +94,7 @@ const File = struct {
     };
 };
 
-const MakeError = vfs.OpenAbsoluteError;
+const MakeError = error{AlreadyExists} || vfs.OpenAbsoluteError;
 
 pub fn makeFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) MakeError!void {
     const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ cwd, path });
@@ -102,6 +102,12 @@ pub fn makeFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) M
     const parent_path = std.fs.path.dirname(resolved_path) orelse "/";
     const parent_node = try vfs.openAbsolute(parent_path);
     const parent_directory: *Directory = @ptrCast(@alignCast(parent_node.ctx));
+
+    for (parent_directory.children.items) |child_node| {
+        if (std.mem.eql(u8, child_node.name, std.fs.path.basename(path))) {
+            return error.AlreadyExists;
+        }
+    }
 
     const child_node = try parent_directory.children.addOne(backing_allocator);
 
@@ -130,14 +136,17 @@ pub fn makeFile(cwd: []const u8, path: []const u8, size: u64, reader: anytype) M
 }
 
 pub fn makeDirectory(cwd: []const u8, path: []const u8) MakeError!void {
-    // The root directory is already created
-    if (std.mem.eql(u8, path, "./") and std.mem.eql(u8, cwd, "/")) return;
-
     const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ cwd, path });
 
     const parent_path = std.fs.path.dirname(resolved_path) orelse "/";
     const parent_node = try vfs.openAbsolute(parent_path);
     const parent_directory: *Directory = @ptrCast(@alignCast(parent_node.ctx));
+
+    for (parent_directory.children.items) |child_node| {
+        if (std.mem.eql(u8, child_node.name, std.fs.path.basename(path))) {
+            return error.AlreadyExists;
+        }
+    }
 
     const child_node = try parent_directory.children.addOne(backing_allocator);
 
@@ -155,12 +164,22 @@ pub fn makeDirectory(cwd: []const u8, path: []const u8) MakeError!void {
     };
 }
 
+pub fn makeHierarchicalTree() MakeError!void {
+    try makeDirectory("/", "./home");
+    try makeDirectory("/", "./tmp");
+    try makeDirectory("/", "./etc");
+
+    try makeDirectory("/", "./usr");
+    try makeDirectory("/usr", "./bin");
+    try makeDirectory("/usr", "./lib");
+}
+
 /// Support for unpacking a tar file into the temporary file system
 pub const tar = struct {
     var file_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
     var link_name_buffer: [std.fs.max_path_bytes]u8 = undefined;
 
-    const UnpackError = MakeError;
+    const UnpackError = vfs.OpenAbsoluteError;
 
     pub fn unpack(path: []const u8, tar_data: []u8) UnpackError!void {
         var tar_file_stream = std.io.fixedBufferStream(tar_data);
@@ -172,8 +191,15 @@ pub const tar = struct {
 
         while (tar_iterator.next() catch @panic("could not parse tar file")) |tar_entry| {
             switch (tar_entry.kind) {
-                .file => try makeFile(path, tar_entry.name, tar_entry.size, tar_entry.reader()),
-                .directory => try makeDirectory(path, tar_entry.name),
+                .file => makeFile(path, tar_entry.name, tar_entry.size, tar_entry.reader()) catch |err| switch (err) {
+                    error.AlreadyExists => {},
+                    inline else => |other_err| return other_err,
+                },
+
+                .directory => makeDirectory(path, tar_entry.name) catch |err| switch (err) {
+                    error.AlreadyExists => {},
+                    inline else => |other_err| return other_err,
+                },
 
                 .sym_link => @panic("symbolic links should not be in the tar file"),
             }

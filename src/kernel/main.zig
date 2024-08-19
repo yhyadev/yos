@@ -70,10 +70,15 @@ fn stage1() noreturn {
             error.OutOfMemory => @panic("out of memory"),
         };
 
+        // Make the hierarchical tree
+        tmpfs.makeHierarchicalTree() catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+            else => unreachable,
+        };
+
         // Initialize device file system
         devfs.init(allocator) catch |err| switch (err) {
             error.OutOfMemory => @panic("out of memory"),
-
             else => unreachable,
         };
 

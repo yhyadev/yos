@@ -139,8 +139,7 @@ const Process = struct {
 
     /// Open a file and return its index in the open files list
     pub fn openFile(self: *Process, path: []const u8) !isize {
-        // TODO: Currently working dirctory should be used here
-        const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ "/", path });
+        const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ self.env.get("PWD").?, path });
 
         const file = try vfs.openAbsolute(resolved_path);
 
@@ -243,10 +242,14 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     }
 
     {
-        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
-            error.OutOfMemory => return err,
-            error.NotFound => @panic("console device is not found"),
+        try process.env.put(scoped_allocator, "PWD", "/home");
+        try process.env.put(scoped_allocator, "PATH", "/usr/bin");
+    }
 
+    {
+        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            error.NotFound => @panic("console device is not found"),
             else => unreachable,
         };
 
@@ -338,44 +341,72 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 /// Replace the current running context with a new context that is retrieved from an
 /// elf file loaded from path in argv[0], and initialize the environment variables using
 /// the provided list
-pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, env: []const [*:0]const u8) !void {
+pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, envp: []const [*:0]const u8) !void {
     const process = maybe_process.?;
 
     const scoped_allocator = process.arena.allocator();
 
     if (argv.len < 1) return error.NotFound;
 
-    const elf_file_path = std.mem.span(argv[0]);
+    const file_path = std.mem.span(argv[0]);
 
-    {
-        const elf_file = try vfs.openAbsolute(elf_file_path);
-        defer elf_file.close();
+    var bin_path_iterator = std.mem.splitSequence(u8, process.env.get("PATH").?, ":");
 
-        const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
-
-        _ = elf_file.read(0, elf_content);
-
-        try process.loadElf(elf_content);
+    if (std.fs.path.isAbsolute(file_path)) {
+        // A hacky way to only iterate on the root directory
+        bin_path_iterator = std.mem.splitSequence(u8, "/", ".");
     }
 
-    for (env) |env_pair_ptr| {
-        try process.putEnvPair(std.mem.span(env_pair_ptr));
+    while (bin_path_iterator.next()) |bin_path| {
+        const resolved_file_path = try std.fs.path.resolve(scoped_allocator, &.{ bin_path, file_path });
+        defer scoped_allocator.free(resolved_file_path);
+
+        {
+            const elf_file = vfs.openAbsolute(resolved_file_path) catch |err| switch (err) {
+                error.NotFound => continue,
+                inline else => |other_err| return other_err,
+            };
+
+            defer elf_file.close();
+
+            const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
+
+            _ = elf_file.read(0, elf_content);
+
+            try process.loadElf(elf_content);
+        }
+
+        {
+            for (envp) |env_pair_ptr| {
+                try process.putEnvPair(std.mem.span(env_pair_ptr));
+            }
+        }
+
+        {
+            for (process.files.items) |maybe_open_file| {
+                if (maybe_open_file) |open_file| {
+                    open_file.close();
+                }
+            }
+
+            process.files.clearRetainingCapacity();
+
+            const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
+                error.OutOfMemory => return err,
+                error.NotFound => @panic("console device is not found"),
+
+                else => unreachable,
+            };
+
+            try process.files.appendNTimes(scoped_allocator, console_device, 3);
+        }
+
+        context.* = process.context;
+
+        return;
     }
 
-    process.files.clearRetainingCapacity();
-
-    {
-        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
-            error.OutOfMemory => return err,
-            error.NotFound => @panic("console device is not found"),
-
-            else => unreachable,
-        };
-
-        try process.files.appendNTimes(scoped_allocator, console_device, 3);
-    }
-
-    context.* = process.context;
+    return error.NotFound;
 }
 
 /// Control the timer interrupt manually using the ticks specified

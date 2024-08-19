@@ -9,7 +9,13 @@ const stream = @import("stream.zig");
 const tmpfs = @import("fs/tmpfs.zig");
 
 pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
-    const buffer = @as([*]u8, @ptrFromInt(buffer_ptr))[0..buffer_len];
+    if (buffer_len == 0) {
+        context.rax = 0;
+
+        return;
+    }
+
+    const buffer = @as([*]const u8, @ptrFromInt(buffer_ptr))[0..buffer_len];
 
     const process = scheduler.maybe_process.?;
 
@@ -17,6 +23,12 @@ pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffe
 }
 
 pub fn read(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
+    if (buffer_len == 0) {
+        context.rax = 0;
+
+        return;
+    }
+
     const buffer = @as([*]u8, @ptrFromInt(buffer_ptr))[0..buffer_len];
 
     const process = scheduler.maybe_process.?;
@@ -25,7 +37,7 @@ pub fn read(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer
 }
 
 pub fn open(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize) void {
-    const path = @as([*]u8, @ptrFromInt(path_ptr))[0..path_len];
+    const path = if (path_len != 0) @as([*]const u8, @ptrFromInt(path_ptr))[0..path_len] else "";
 
     const process = scheduler.maybe_process.?;
 
@@ -87,15 +99,15 @@ pub fn fork(context: *arch.cpu.process.Context) void {
     };
 }
 
-pub fn execve(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usize, env_ptr: usize, env_len: usize) void {
-    const argv = @as([*]const [*:0]const u8, @ptrFromInt(argv_ptr))[0..argv_len];
-    const env = @as([*]const [*:0]const u8, @ptrFromInt(env_ptr))[0..env_len];
+pub fn execve(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usize, envp_ptr: usize, envp_len: usize) void {
+    const argv: []const [*:0]const u8 = if (argv_len != 0) @as([*]const [*:0]const u8, @ptrFromInt(argv_ptr))[0..argv_len] else &.{};
+    const envp: []const [*:0]const u8 = if (envp_len != 0) @as([*]const [*:0]const u8, @ptrFromInt(envp_ptr))[0..envp_len] else &.{};
 
     const result: *isize = @ptrCast(&context.rax);
 
     result.* = 0;
 
-    scheduler.execve(context, argv, env) catch |err| switch (err) {
+    scheduler.execve(context, argv, envp) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
         error.NotFound => result.* = -1,
         error.NotDirectory => result.* = -2,
@@ -127,7 +139,7 @@ pub fn scrheight(context: *arch.cpu.process.Context) void {
 }
 
 pub fn envput(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_len: usize) void {
-    const env_pair = @as([*]const u8, @ptrFromInt(env_pair_ptr))[0..env_pair_len];
+    const env_pair = if (env_pair_len != 0) @as([*]const u8, @ptrFromInt(env_pair_ptr))[0..env_pair_len] else "";
 
     const process = scheduler.maybe_process.?;
 
@@ -141,8 +153,8 @@ pub fn envput(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_
     };
 }
 
-pub fn envget(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_len: usize) void {
-    const env_key = @as([*]const u8, @ptrFromInt(env_key_ptr))[0..env_key_len];
+pub fn envget(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_len: usize, env_value_len_ptr: usize) void {
+    const env_key = if (env_key_len != 0) @as([*]const u8, @ptrFromInt(env_key_ptr))[0..env_key_len] else "";
 
     const process = scheduler.maybe_process.?;
 
@@ -150,11 +162,9 @@ pub fn envget(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_le
 
     const env_value = process.env.get(env_key) orelse return;
 
-    const env_value_z = user_allocator.dupeZ(u8, env_value) catch |err| switch (err) {
-        error.OutOfMemory => @panic("out of memory"),
-    };
+    @as(*usize, @ptrFromInt(env_value_len_ptr)).* = env_value.len;
 
-    context.rax = @intCast(@intFromPtr(env_value_z.ptr));
+    context.rax = @intFromPtr(env_value.ptr);
 }
 
 const user_allocator: std.mem.Allocator = .{
@@ -254,22 +264,27 @@ pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) 
 }
 
 pub fn mkdir(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize) void {
-    const path = @as([*]u8, @ptrFromInt(path_ptr))[0..path_len];
+    const path = if (path_len != 0) @as([*]const u8, @ptrFromInt(path_ptr))[0..path_len] else "";
+
+    const process = scheduler.maybe_process.?;
 
     const result: *isize = @ptrCast(&context.rax);
 
     result.* = 0;
 
-    tmpfs.makeDirectory("/", path) catch |err| switch (err) {
+    tmpfs.makeDirectory(process.env.get("PWD").?, path) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
         error.NotFound => result.* = -1,
         error.NotDirectory => result.* = -2,
         error.PathNotAbsolute => result.* = -3,
+        error.AlreadyExists => result.* = -4,
     };
 }
 
 pub fn mkfile(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize) void {
-    const path = @as([*]u8, @ptrFromInt(path_ptr))[0..path_len];
+    const path = if (path_len != 0) @as([*]const u8, @ptrFromInt(path_ptr))[0..path_len] else "";
+
+    const process = scheduler.maybe_process.?;
 
     const result: *isize = @ptrCast(&context.rax);
 
@@ -278,10 +293,11 @@ pub fn mkfile(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usi
     const empty_buffer: [0]u8 = undefined;
     var empty_stream = std.io.fixedBufferStream(&empty_buffer);
 
-    tmpfs.makeFile("/", path, 0, empty_stream.reader()) catch |err| switch (err) {
+    tmpfs.makeFile(process.env.get("PWD").?, path, 0, empty_stream.reader()) catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
         error.NotFound => result.* = -1,
         error.NotDirectory => result.* = -2,
         error.PathNotAbsolute => result.* = -3,
+        error.AlreadyExists => result.* = -4,
     };
 }
