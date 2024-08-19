@@ -12,6 +12,7 @@ var backing_allocator: std.mem.Allocator = undefined;
 
 pub var maybe_process: ?*Process = null;
 var processes: std.ArrayListUnmanaged(Process) = .{};
+var stopped_processes: std.ArrayListUnmanaged(*Process) = .{};
 var process_queue: std.fifo.LinearFifo(*Process, .Dynamic) = undefined;
 
 const reschedule_ticks = 0x100000;
@@ -190,6 +191,14 @@ const Process = struct {
 
     /// Stop the process from running and free resources
     pub fn stop(self: *Process) void {
+        for (self.files.items) |maybe_file| {
+            if (maybe_file) |file| {
+                file.close();
+            }
+        }
+
+        self.arena.deinit();
+
         if (maybe_process == self) {
             maybe_process = null;
         }
@@ -204,22 +213,31 @@ const Process = struct {
             }
         }
 
-        for (self.files.items) |maybe_file| {
-            if (maybe_file) |file| {
-                file.close();
-            }
-        }
-
-        self.arena.deinit();
+        stopped_processes.append(backing_allocator, self) catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+        };
     }
 };
 
+/// Allocate a new process and return its pointer, reuses a previously allocated memory if we have any
+fn allocProcess(is_newly_allocated: *bool) std.mem.Allocator.Error!*Process {
+    if (stopped_processes.popOrNull()) |stopped_process| {
+        return stopped_process;
+    }
+
+    is_newly_allocated.* = true;
+
+    return processes.addOne(backing_allocator);
+}
+
 /// Set the initial process, which is necessary before starting the scheduler if there is no processes before this
 pub fn setInitialProcess(elf_file_path: []const u8) !void {
-    const process = try processes.addOne(backing_allocator);
+    var process_newly_allocated = false;
+
+    const process = try allocProcess(&process_newly_allocated);
 
     process.* = .{
-        .id = processes.items.len,
+        .id = if (process_newly_allocated) processes.items.len else process.id,
         .arena = std.heap.ArenaAllocator.init(backing_allocator),
         .context = .{},
         .page_table = undefined,
@@ -288,10 +306,12 @@ pub fn kill(pid: usize) void {
 pub fn fork(context: *arch.cpu.process.Context) !usize {
     const parent_process = maybe_process.?;
 
-    const child_process = try processes.addOne(backing_allocator);
+    var child_process_newly_allocated = false;
+
+    const child_process = try allocProcess(&child_process_newly_allocated);
 
     child_process.* = .{
-        .id = processes.items.len,
+        .id = if (child_process_newly_allocated) processes.items.len else child_process.id,
         .arena = std.heap.ArenaAllocator.init(backing_allocator),
         .context = context.*,
         .page_table = undefined,
