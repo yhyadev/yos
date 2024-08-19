@@ -49,7 +49,9 @@ const File = struct {
                 if (offset >= content.len or buffer.len > content.len - offset) {
                     const new_content_len = content.len + offset + buffer.len;
 
-                    if (!backing_allocator.resize(content.*, new_content_len)) {
+                    if (backing_allocator.resize(content.*, new_content_len)) {
+                        content.len = new_content_len;
+                    } else {
                         content.* = backing_allocator.realloc(content.*, new_content_len) catch |err| switch (err) {
                             error.OutOfMemory => @panic("out of memory"),
                         };

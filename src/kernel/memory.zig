@@ -23,9 +23,9 @@ pub const PageAllocator = struct {
     var total_page_count: usize = 0;
 
     pub const vtable: std.mem.Allocator.VTable = .{
-        .alloc = alloc,
-        .resize = std.mem.Allocator.noResize,
-        .free = free,
+        .alloc = &alloc,
+        .resize = &resize,
+        .free = &free,
     };
 
     pub fn init() std.mem.Allocator.Error!void {
@@ -81,6 +81,41 @@ pub const PageAllocator = struct {
         return null;
     }
 
+    fn resize(_: *anyopaque, bytes: []u8, _: u8, new_bytes_len: usize, _: usize) bool {
+        const used_page_count = std.math.divCeil(usize, bytes.len, std.mem.page_size) catch unreachable;
+        const new_page_count = std.math.divCeil(usize, new_bytes_len, std.mem.page_size) catch unreachable;
+
+        if (new_page_count == used_page_count) {
+            return true;
+        }
+
+        if (new_page_count < used_page_count) {
+            free(undefined, (bytes.ptr + new_page_count * std.mem.page_size)[0 .. (used_page_count - new_page_count) * std.mem.page_size], 0, 0);
+
+            return true;
+        }
+
+        if (new_page_count > used_page_count) {
+            for (0..total_page_count) |i| {
+                if ((memory_region.ptr + (i * std.mem.page_size)) == (bytes.ptr + (used_page_count * std.mem.page_size))) {
+                    for (i..i + new_page_count) |j| {
+                        if (page_bitmap.isSet(j)) {
+                            return false;
+                        }
+                    }
+
+                    for (i..i + new_page_count) |j| {
+                        page_bitmap.set(j);
+                    }
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
         std.debug.assert(bytes.len > 0);
 
@@ -89,11 +124,11 @@ pub const PageAllocator = struct {
 
         if (!initialized) @panic("free is called while the page allocator is not initialized");
 
-        const required_page_count = std.math.divCeil(usize, bytes.len, std.mem.page_size) catch unreachable;
+        const used_page_count = std.math.divCeil(usize, bytes.len, std.mem.page_size) catch unreachable;
 
         for (0..total_page_count) |i| {
             if ((memory_region.ptr + (i * std.mem.page_size)) == bytes.ptr) {
-                for (i..i + required_page_count) |j| {
+                for (i..i + used_page_count) |j| {
                     page_bitmap.toggle(j);
                 }
 

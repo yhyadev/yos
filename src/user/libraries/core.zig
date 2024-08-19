@@ -86,9 +86,9 @@ pub const memory = struct {
 
     pub const Allocator = struct {
         pub const vtable: std.mem.Allocator.VTable = .{
-            .alloc = alloc,
-            .resize = std.mem.Allocator.noResize,
-            .free = free,
+            .alloc = &alloc,
+            .resize = &std.mem.Allocator.noResize,
+            .free = &free,
         };
 
         fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
