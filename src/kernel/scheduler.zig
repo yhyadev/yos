@@ -260,6 +260,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     }
 
     {
+        try process.env.put(scoped_allocator, "HOME", "/home");
         try process.env.put(scoped_allocator, "PWD", "/home");
         try process.env.put(scoped_allocator, "PATH", "/usr/bin");
     }
