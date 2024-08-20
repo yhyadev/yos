@@ -117,25 +117,15 @@ pub fn execve(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usi
     };
 }
 
-pub fn scrput(_: *arch.cpu.process.Context, x: usize, y: usize, color_64: usize) void {
-    const color_32: u32 = @truncate(color_64);
-    const color: abi.Color = @bitCast(color_32);
+pub fn getframebuffer(context: *arch.cpu.process.Context, width_ptr: usize, height_ptr: usize) void {
+    @as(*usize, @ptrFromInt(width_ptr)).* = screen.framebuffer.width;
+    @as(*usize, @ptrFromInt(height_ptr)).* = screen.framebuffer.height;
 
-    screen.get(x, y).* = color;
-}
+    const page_table = arch.paging.getActivePageTable();
 
-pub fn scrget(context: *arch.cpu.process.Context, x: usize, y: usize) void {
-    const result: *abi.Color = @ptrCast(&context.rax);
+    const framebuffer_physical_address = page_table.physicalFromVirtual(@intFromPtr(screen.framebuffer.address)).?;
 
-    result.* = screen.get(x, y).*;
-}
-
-pub fn scrwidth(context: *arch.cpu.process.Context) void {
-    context.rax = screen.framebuffer.width;
-}
-
-pub fn scrheight(context: *arch.cpu.process.Context) void {
-    context.rax = screen.framebuffer.height;
+    context.rax = searchAndMap(0, framebuffer_physical_address, screen.framebuffer.width * screen.framebuffer.height * 4, 0x2);
 }
 
 pub fn envput(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_len: usize) void {
@@ -195,13 +185,25 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
 
     const page_table = arch.paging.getActivePageTable();
 
-    const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
+    const bytes = scoped_allocator.alignedAlloc(u8, std.mem.page_size, bytes_len) catch {
+        context.rax = 0;
 
-    context.rax = 0;
-
-    const bytes = scoped_allocator.alignedAlloc(u8, std.mem.page_size, bytes_len) catch return;
+        return;
+    };
 
     const physical_address = page_table.physicalFromVirtual(@intFromPtr(bytes.ptr)).?;
+
+    context.rax = searchAndMap(virtual_address_hint, physical_address, bytes_len, protection);
+}
+
+fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len: usize, protection: usize) usize {
+    const process = scheduler.maybe_process.?;
+
+    const page_table = arch.paging.getActivePageTable();
+
+    const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
+
+    const scoped_allocator = process.arena.allocator();
 
     const min_virtual_address = 0x10000;
 
@@ -232,19 +234,19 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
                         .executable = (protection & 0x4) != 0,
                     },
                 ) catch {
-                    return;
+                    return 0;
                 };
             }
 
-            context.rax = virtual_address;
-
-            return;
+            return virtual_address;
         }
 
         if (virtual_address == min_virtual_address and virtual_address_hint != 0) {
             virtual_address = std.mem.alignForward(usize, virtual_address_hint, std.mem.page_size) - std.mem.page_size;
         }
     }
+
+    return 0;
 }
 
 pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) void {

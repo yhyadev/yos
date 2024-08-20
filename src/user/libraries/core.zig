@@ -30,21 +30,17 @@ pub const console = struct {
     }
 };
 
-pub const screen = struct {
-    pub fn put(x: usize, y: usize, color: abi.Color) void {
-        _ = syscall3(.scrput, x, y, @as(u32, @bitCast(color)));
-    }
+pub const framebuffer = struct {
+    pub var data: []abi.Color = undefined;
+    pub var width: usize = 0;
+    pub var height: usize = 0;
 
-    pub fn get(x: usize, y: usize) abi.Color {
-        return @bitCast(@as(u32, @intCast(syscall2(.scrget, x, y))));
-    }
+    pub fn init() void {
+        const maybe_data_ptr: ?[*]abi.Color = @ptrFromInt(syscall2(.getframebuffer, @intFromPtr(&width), @intFromPtr(&height)));
 
-    pub fn width() usize {
-        return syscall0(.scrwidth);
-    }
-
-    pub fn height() usize {
-        return syscall0(.scrheight);
+        if (maybe_data_ptr) |data_ptr| {
+            data = data_ptr[0 .. width * height];
+        }
     }
 };
 

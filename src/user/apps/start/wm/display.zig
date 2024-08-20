@@ -49,14 +49,14 @@ pub fn synchronize() void {
         if (!std.meta.eql(front_color.*, back_color)) {
             front_color.* = back_color;
 
-            core.screen.put(i % state.width, @divFloor(i, state.width), back_color);
+            core.framebuffer.data[i] = back_color;
         }
     }
 }
 
 pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
-    state.width = core.screen.width();
-    state.height = core.screen.height();
+    state.width = core.framebuffer.width;
+    state.height = core.framebuffer.height;
 
     state.buffer = try allocator.alloc(abi.Color, state.width * state.height * 2);
 
