@@ -3,7 +3,7 @@ const core = @import("core");
 
 pub const panic = core.console.panic;
 
-fn list_dir(path: []const u8) void {
+fn listDir(path: []const u8) void {
     const dir_open_result = core.fs.open(path);
 
     switch (dir_open_result) {
@@ -35,14 +35,14 @@ export fn _start() noreturn {
     const argv = core.process.getargv();
 
     if (argv.len == 1) {
-        list_dir(core.process.env.get("PWD").?);
+        listDir(core.process.env.get("PWD").?);
     } else {
         for (argv[1..]) |arg| {
             if (argv.len > 2) {
                 core.console.print("{s}:\n", .{arg});
             }
 
-            list_dir(std.mem.span(arg));
+            listDir(std.mem.span(arg));
 
             if (argv.len > 2) {
                 core.console.print("\n", .{});
