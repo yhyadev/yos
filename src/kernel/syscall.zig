@@ -128,7 +128,7 @@ pub fn getframebuffer(context: *arch.cpu.process.Context, width_ptr: usize, heig
     context.rax = searchAndMap(0, framebuffer_physical_address, screen.framebuffer.width * screen.framebuffer.height * 4, 0x2);
 }
 
-pub fn envput(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_len: usize) void {
+pub fn putenv(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_len: usize) void {
     const env_pair = if (env_pair_len != 0) @as([*]const u8, @ptrFromInt(env_pair_ptr))[0..env_pair_len] else "";
 
     const process = scheduler.maybe_process.?;
@@ -143,7 +143,7 @@ pub fn envput(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_
     };
 }
 
-pub fn envget(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_len: usize, env_value_len_ptr: usize) void {
+pub fn getenv(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_len: usize, env_value_len_ptr: usize) void {
     const env_key = if (env_key_len != 0) @as([*]const u8, @ptrFromInt(env_key_ptr))[0..env_key_len] else "";
 
     const process = scheduler.maybe_process.?;

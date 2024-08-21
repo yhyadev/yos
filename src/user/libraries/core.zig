@@ -99,13 +99,13 @@ pub const memory = struct {
 
 pub const env = struct {
     pub fn put(env_pair: []const u8) isize {
-        return @bitCast(syscall2(.envput, @intFromPtr(env_pair.ptr), env_pair.len));
+        return @bitCast(syscall2(.putenv, @intFromPtr(env_pair.ptr), env_pair.len));
     }
 
     pub fn get(env_key: []const u8) ?[]const u8 {
         var env_value_len: usize = 0;
 
-        const maybe_env_value_ptr: ?[*]u8 = @ptrFromInt(syscall3(.envget, @intFromPtr(env_key.ptr), env_key.len, @intFromPtr(&env_value_len)));
+        const maybe_env_value_ptr: ?[*]u8 = @ptrFromInt(syscall3(.getenv, @intFromPtr(env_key.ptr), env_key.len, @intFromPtr(&env_value_len)));
 
         if (maybe_env_value_ptr) |env_value_ptr| {
             return env_value_ptr[0..env_value_len];
