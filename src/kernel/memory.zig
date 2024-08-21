@@ -13,6 +13,30 @@ export var memory_map_request: limine.MemoryMapRequest = .{};
 
 pub var memory_region: []u8 = undefined;
 
+pub const user_allocator: std.mem.Allocator = .{
+    .ptr = undefined,
+    .vtable = &struct {
+        pub const vtable: std.mem.Allocator.VTable = .{
+            .alloc = &alloc,
+            .resize = &std.mem.Allocator.noResize,
+            .free = &free,
+        };
+
+        const mmap = @import("syscall.zig").mmap;
+        const munmap = @import("syscall.zig").munmap;
+
+        fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
+            var context: @import("arch.zig").cpu.process.Context = .{};
+            mmap(&context, 0, bytes_len, 2, 0);
+            return @ptrFromInt(context.rax);
+        }
+
+        fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
+            munmap(undefined, @intFromPtr(bytes.ptr), bytes.len);
+        }
+    }.vtable,
+};
+
 pub const PageAllocator = struct {
     var initialized = false;
 

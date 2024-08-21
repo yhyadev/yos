@@ -8,6 +8,8 @@ const arch = @import("arch.zig");
 const higher_half = @import("higher_half.zig");
 const vfs = @import("fs/vfs.zig");
 
+const user_allocator = @import("memory.zig").user_allocator;
+
 var backing_allocator: std.mem.Allocator = undefined;
 
 pub var maybe_process: ?*Process = null;
@@ -31,10 +33,11 @@ const Process = struct {
     children: std.ArrayListUnmanaged(?*Process) = .{},
     files: std.ArrayListUnmanaged(?*vfs.FileSystem.Node) = .{},
     env: std.StringHashMapUnmanaged([]const u8) = .{},
+    argv: []const [*:0]const u8 = &.{},
 
     /// Load the elf segments and user stack, this modifies the context respectively
     fn loadElf(self: *Process, elf_content: []const u8) !void {
-        const scoped_allocator = self.arena.allocator();
+        const kernel_allocator = self.arena.allocator();
 
         var elf_exe_stream = std.io.fixedBufferStream(elf_content);
 
@@ -50,23 +53,23 @@ const Process = struct {
 
                 std.elf.PT_PHDR => {},
 
-                std.elf.PT_LOAD => try mapElfSegment(self.page_table, scoped_allocator, elf_content, program_header),
+                std.elf.PT_LOAD => try mapElfSegment(self.page_table, kernel_allocator, elf_content, program_header),
 
                 else => return error.BadElf,
             }
         }
 
-        try mapUserStack(self.page_table, scoped_allocator);
+        try mapUserStack(self.page_table, kernel_allocator);
 
         self.context.rcx = elf_header.entry;
         self.context.rsp = user_stack_top;
     }
 
-    /// Map an elf segment into a specific page table with a specific scoped allocator, this expects the segment to be aligned to 4096 (which is the minimum page size)
-    fn mapElfSegment(page_table: *arch.paging.PageTable, scoped_allocator: std.mem.Allocator, elf_content: []const u8, program_header: std.elf.Elf64_Phdr) !void {
+    /// Map an elf segment into a specific page table with a specific allocator, this expects the segment to be aligned to 4096 (which is the minimum page size)
+    fn mapElfSegment(page_table: *arch.paging.PageTable, allocator: std.mem.Allocator, elf_content: []const u8, program_header: std.elf.Elf64_Phdr) !void {
         const page_count = std.math.divCeil(usize, program_header.p_memsz, std.mem.page_size) catch unreachable;
 
-        const pages = try scoped_allocator.allocWithOptions(u8, page_count * std.mem.page_size, std.mem.page_size, null);
+        const pages = try allocator.allocWithOptions(u8, page_count * std.mem.page_size, std.mem.page_size, null);
 
         const pages_physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).?;
 
@@ -79,7 +82,7 @@ const Process = struct {
             const physical_address = pages_physical_address + i * std.mem.page_size;
 
             try page_table.map(
-                scoped_allocator,
+                allocator,
                 virtual_address,
                 physical_address,
                 .{
@@ -92,9 +95,9 @@ const Process = struct {
         }
     }
 
-    /// Map the user stack into a specific page table with a specific scoped allocator
-    fn mapUserStack(page_table: *arch.paging.PageTable, scoped_allocator: std.mem.Allocator) !void {
-        const pages = try scoped_allocator.allocWithOptions(u8, user_stack_page_count * std.mem.page_size, std.mem.page_size, null);
+    /// Map the user stack into a specific page table with a specific allocator
+    fn mapUserStack(page_table: *arch.paging.PageTable, allocator: std.mem.Allocator) !void {
+        const pages = try allocator.allocWithOptions(u8, user_stack_page_count * std.mem.page_size, std.mem.page_size, null);
 
         const pages_physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).?;
 
@@ -103,7 +106,7 @@ const Process = struct {
             const physical_address = pages_physical_address + i * std.mem.page_size;
 
             try page_table.map(
-                scoped_allocator,
+                allocator,
                 virtual_address,
                 physical_address,
                 .{
@@ -162,14 +165,12 @@ const Process = struct {
 
     /// Put into the environment using a pair instead of key to value structure
     pub fn putEnvPair(self: *Process, env_pair: []const u8) !void {
-        const scoped_allocator = self.arena.allocator();
-
         var env_pair_iterator = std.mem.splitSequence(u8, env_pair, "=");
 
         const env_key = env_pair_iterator.next() orelse return error.BadEnvPair;
         const env_value = env_pair_iterator.next() orelse return error.BadEnvPair;
 
-        try self.env.put(scoped_allocator, env_key, env_value);
+        try self.env.put(user_allocator, env_key, env_value);
     }
 
     /// Pass the control to underlying code that the process hold
@@ -243,16 +244,16 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
         .page_table = undefined,
     };
 
-    const scoped_allocator = process.arena.allocator();
+    const kernel_allocator = process.arena.allocator();
 
-    process.page_table = try arch.paging.PageTable.init(scoped_allocator);
+    process.page_table = try arch.paging.PageTable.init(kernel_allocator);
     process.page_table.mapKernel();
 
     {
         const elf_file = try vfs.openAbsolute(elf_file_path);
         defer elf_file.close();
 
-        const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
+        const elf_content = try kernel_allocator.alloc(u8, elf_file.fileSize());
 
         _ = elf_file.read(0, elf_content);
 
@@ -260,9 +261,14 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     }
 
     {
-        try process.env.put(scoped_allocator, "HOME", "/home");
-        try process.env.put(scoped_allocator, "PWD", "/home");
-        try process.env.put(scoped_allocator, "PATH", "/usr/bin");
+        const home_path = try user_allocator.dupe(u8, "/home");
+
+        try process.env.put(kernel_allocator, "HOME", home_path);
+        try process.env.put(kernel_allocator, "PWD", home_path);
+
+        const bin_path = try user_allocator.dupe(u8, "/usr/bin");
+
+        try process.env.put(kernel_allocator, "PATH", bin_path);
     }
 
     {
@@ -272,7 +278,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
             else => unreachable,
         };
 
-        try process.files.appendNTimes(scoped_allocator, console_device, 3);
+        try process.files.appendNTimes(kernel_allocator, console_device, 3);
     }
 
     maybe_process = process;
@@ -316,14 +322,14 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 
     child_process.context.rax = 0;
 
-    const scoped_allocator = child_process.arena.allocator();
+    const kernel_allocator = child_process.arena.allocator();
 
-    child_process.page_table = try parent_process.page_table.clone(scoped_allocator);
+    child_process.page_table = try parent_process.page_table.clone(kernel_allocator);
 
-    child_process.env = try parent_process.env.clone(scoped_allocator);
+    child_process.env = try parent_process.env.clone(kernel_allocator);
 
     {
-        try Process.mapUserStack(child_process.page_table, scoped_allocator);
+        try Process.mapUserStack(child_process.page_table, kernel_allocator);
 
         const StackPages = *[user_stack_page_count * std.mem.page_size]u8;
 
@@ -345,7 +351,7 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
             else => unreachable,
         };
 
-        try child_process.files.appendNTimes(scoped_allocator, console_device, 3);
+        try child_process.files.appendNTimes(kernel_allocator, console_device, 3);
     }
 
     try parent_process.children.append(parent_process.arena.allocator(), child_process);
@@ -361,7 +367,7 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, envp: []const [*:0]const u8) !void {
     const process = maybe_process.?;
 
-    const scoped_allocator = process.arena.allocator();
+    const kernel_allocator = process.arena.allocator();
 
     if (argv.len < 1) return error.NotFound;
 
@@ -375,27 +381,33 @@ pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, e
     }
 
     while (bin_path_iterator.next()) |bin_path| {
-        const resolved_file_path = try std.fs.path.resolve(scoped_allocator, &.{ bin_path, file_path });
-        defer scoped_allocator.free(resolved_file_path);
+        const resolved_file_path = try std.fs.path.resolve(kernel_allocator, &.{ bin_path, file_path });
+        defer kernel_allocator.free(resolved_file_path);
+
+        const elf_file = vfs.openAbsolute(resolved_file_path) catch |err| switch (err) {
+            error.NotFound => continue,
+            inline else => |other_err| return other_err,
+        };
+
+        defer elf_file.close();
+
+        const elf_content = try kernel_allocator.alloc(u8, elf_file.fileSize());
+
+        _ = elf_file.read(0, elf_content);
 
         {
-            const elf_file = vfs.openAbsolute(resolved_file_path) catch |err| switch (err) {
-                error.NotFound => continue,
-                inline else => |other_err| return other_err,
-            };
+            const argv_on_heap = try user_allocator.alloc([*:0]const u8, argv.len);
 
-            defer elf_file.close();
+            for (argv, 0..) |arg, i| {
+                argv_on_heap[i] = try user_allocator.dupeZ(u8, std.mem.span(arg));
+            }
 
-            const elf_content = try scoped_allocator.alloc(u8, elf_file.fileSize());
-
-            _ = elf_file.read(0, elf_content);
-
-            try process.loadElf(elf_content);
+            process.argv = argv_on_heap;
         }
 
         {
             for (envp) |env_pair_ptr| {
-                try process.putEnvPair(std.mem.span(env_pair_ptr));
+                try process.putEnvPair(try user_allocator.dupe(u8, std.mem.span(env_pair_ptr)));
             }
         }
 
@@ -415,8 +427,10 @@ pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, e
                 else => unreachable,
             };
 
-            try process.files.appendNTimes(scoped_allocator, console_device, 3);
+            try process.files.appendNTimes(kernel_allocator, console_device, 3);
         }
+
+        try process.loadElf(elf_content);
 
         context.* = process.context;
 

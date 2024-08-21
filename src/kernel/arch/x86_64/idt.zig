@@ -105,43 +105,43 @@ pub fn init() void {
 }
 
 fn handleDivisionError(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("division error\n", .{});
+    std.debug.panic("division error", .{});
 }
 
 fn handleDebug(_: *InterruptContext) callconv(.Interrupt) void {
-    console.print("debug\n", .{});
+    console.print("debug", .{});
 }
 
 fn handleBreakpoint(_: *InterruptContext) callconv(.Interrupt) void {
-    console.print("breakpoint\n", .{});
+    console.print("breakpoint", .{});
 }
 
 fn handleOverflow(_: *InterruptContext) callconv(.Interrupt) void {
-    console.print("overflow\n", .{});
+    console.print("overflow", .{});
 }
 
 fn handleBoundRangeExceeded(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("bound range exceeded\n", .{});
+    std.debug.panic("bound range exceeded", .{});
 }
 
 fn handleInvalidOpcode(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("invalid opcode\n", .{});
+    std.debug.panic("invalid opcode", .{});
 }
 
 fn handleDeviceNotAvailable(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("device not available\n", .{});
+    std.debug.panic("device not available", .{});
 }
 
 fn handleDoubleFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("double fault: {}\n", .{code});
+    std.debug.panic("double fault: {}", .{code});
 }
 
 fn handleSegmentationFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("segmentation fault: {}\n", .{code});
+    std.debug.panic("segmentation fault: {}", .{code});
 }
 
 fn handleGeneralProtectionFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("general protection fault: {}\n", .{code});
+    std.debug.panic("general protection fault: {}", .{code});
 }
 
 fn handlePageFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
@@ -149,37 +149,37 @@ fn handlePageFault(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
 }
 
 fn handleX87FloatingPointException(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("x87 floating point exception\n", .{});
+    std.debug.panic("x87 floating point exception", .{});
 }
 
 fn handleAlignmentCheck(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("alignment check: {}\n", .{code});
+    std.debug.panic("alignment check: {}", .{code});
 }
 
 fn handleMachineCheck(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("machine check\n", .{});
+    std.debug.panic("machine check", .{});
 }
 
 fn handleSIMDFloatingPointException(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("simd floating point exception\n", .{});
+    std.debug.panic("simd floating point exception", .{});
 }
 
 fn handleVirtualizationException(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("virtualization exception\n", .{});
+    std.debug.panic("virtualization exception", .{});
 }
 
 fn handleControlProtectionException(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("control protection exception: {}\n", .{code});
+    std.debug.panic("control protection exception: {}", .{code});
 }
 
 fn handleHypervisorInjectionException(_: *InterruptContext) callconv(.Interrupt) void {
-    std.debug.panic("hypervisor injection exception\n", .{});
+    std.debug.panic("hypervisor injection exception", .{});
 }
 
 fn handleVMMCommunicationException(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("vmm communication exception: {}\n", .{code});
+    std.debug.panic("vmm communication exception: {}", .{code});
 }
 
 fn handleSecurityException(_: *InterruptContext, code: u64) callconv(.Interrupt) void {
-    std.debug.panic("security exception: {}\n", .{code});
+    std.debug.panic("security exception: {}", .{code});
 }

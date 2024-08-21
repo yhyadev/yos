@@ -10,6 +10,7 @@ pub const Syscode = enum(usize) {
     fork,
     execve,
     getframebuffer,
+    getargv,
     putenv,
     getenv,
     mmap,

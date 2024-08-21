@@ -97,27 +97,33 @@ pub const memory = struct {
     };
 };
 
-pub const env = struct {
-    pub fn put(env_pair: []const u8) isize {
-        return @bitCast(syscall2(.putenv, @intFromPtr(env_pair.ptr), env_pair.len));
-    }
-
-    pub fn get(env_key: []const u8) ?[]const u8 {
-        var env_value_len: usize = 0;
-
-        const maybe_env_value_ptr: ?[*]u8 = @ptrFromInt(syscall3(.getenv, @intFromPtr(env_key.ptr), env_key.len, @intFromPtr(&env_value_len)));
-
-        if (maybe_env_value_ptr) |env_value_ptr| {
-            return env_value_ptr[0..env_value_len];
+pub const process = struct {
+    pub const env = struct {
+        pub fn put(env_pair: []const u8) isize {
+            return @bitCast(syscall2(.putenv, @intFromPtr(env_pair.ptr), env_pair.len));
         }
 
-        return null;
-    }
-};
+        pub fn get(env_key: []const u8) ?[]const u8 {
+            var env_value_len: usize = 0;
 
-pub const process = struct {
-    pub fn id() usize {
+            const maybe_env_value_ptr: ?[*]u8 = @ptrFromInt(syscall3(.getenv, @intFromPtr(env_key.ptr), env_key.len, @intFromPtr(&env_value_len)));
+
+            if (maybe_env_value_ptr) |env_value_ptr| {
+                return env_value_ptr[0..env_value_len];
+            }
+
+            return null;
+        }
+    };
+
+    pub fn getid() usize {
         return syscall0(.getpid);
+    }
+
+    pub fn getargv() []const [*:0]const u8 {
+        var argv_len: usize = 0;
+        const argv_ptr: [*]const [*:0]const u8 = @ptrFromInt(syscall1(.getargv, @intFromPtr(&argv_len)));
+        return argv_ptr[0..argv_len];
     }
 
     pub fn exit(status: u8) noreturn {

@@ -128,6 +128,14 @@ pub fn getframebuffer(context: *arch.cpu.process.Context, width_ptr: usize, heig
     context.rax = searchAndMap(0, framebuffer_physical_address, screen.framebuffer.width * screen.framebuffer.height * 4, 0x2);
 }
 
+pub fn getargv(context: *arch.cpu.process.Context, len_ptr: usize) void {
+    const process = scheduler.maybe_process.?;
+
+    @as(*usize, @ptrFromInt(len_ptr)).* = process.argv.len;
+
+    context.rax = @intFromPtr(process.argv.ptr);
+}
+
 pub fn putenv(context: *arch.cpu.process.Context, env_pair_ptr: usize, env_pair_len: usize) void {
     const env_pair = if (env_pair_len != 0) @as([*]const u8, @ptrFromInt(env_pair_ptr))[0..env_pair_len] else "";
 
@@ -157,35 +165,14 @@ pub fn getenv(context: *arch.cpu.process.Context, env_key_ptr: usize, env_key_le
     context.rax = @intFromPtr(env_value.ptr);
 }
 
-const user_allocator: std.mem.Allocator = .{
-    .ptr = undefined,
-    .vtable = &struct {
-        pub const vtable: std.mem.Allocator.VTable = .{
-            .alloc = &alloc,
-            .resize = &std.mem.Allocator.noResize,
-            .free = &free,
-        };
-
-        fn alloc(_: *anyopaque, bytes_len: usize, _: u8, _: usize) ?[*]u8 {
-            var context: arch.cpu.process.Context = .{};
-            mmap(&context, 0, bytes_len, 2, 0);
-            return @ptrFromInt(context.rax);
-        }
-
-        fn free(_: *anyopaque, bytes: []u8, _: u8, _: usize) void {
-            munmap(undefined, @intFromPtr(bytes.ptr), bytes.len);
-        }
-    }.vtable,
-};
-
 pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, bytes_len: usize, protection: usize, _: usize) void {
     const process = scheduler.maybe_process.?;
 
-    const scoped_allocator = process.arena.allocator();
+    const kernel_allocator = process.arena.allocator();
 
     const page_table = arch.paging.getActivePageTable();
 
-    const bytes = scoped_allocator.alignedAlloc(u8, std.mem.page_size, bytes_len) catch {
+    const bytes = kernel_allocator.alignedAlloc(u8, std.mem.page_size, bytes_len) catch {
         context.rax = 0;
 
         return;
@@ -203,7 +190,7 @@ fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len:
 
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
-    const scoped_allocator = process.arena.allocator();
+    const kernel_allocator = process.arena.allocator();
 
     const min_virtual_address = 0x10000;
 
@@ -224,7 +211,7 @@ fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len:
                 const offsetted_physical_address = physical_address + i * std.mem.page_size;
 
                 page_table.map(
-                    scoped_allocator,
+                    kernel_allocator,
                     offsetted_virtual_address,
                     offsetted_physical_address,
                     .{
@@ -252,13 +239,13 @@ fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len:
 pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) void {
     const process = scheduler.maybe_process.?;
 
-    const scoped_allocator = process.arena.allocator();
+    const kernel_allocator = process.arena.allocator();
 
     const page_table = arch.paging.getActivePageTable();
 
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
-    scoped_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
+    kernel_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
 
     for (0..page_count) |i| {
         page_table.unmap(bytes_ptr + i * std.mem.page_size);
