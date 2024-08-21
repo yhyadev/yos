@@ -276,6 +276,11 @@ pub const PageTable = extern struct {
             }
         }
     }
+
+    /// Set the active page table by writing to the control register number 3
+    pub inline fn setActivePageTable(self: *PageTable) void {
+        cpu.registers.Cr3.write(getActivePageTable().physicalFromVirtual(@intFromPtr(self)).?);
+    }
 };
 
 pub const Indices = struct {
@@ -317,11 +322,6 @@ pub const Indices = struct {
 /// Get the active page table by reading the control register number 3
 pub inline fn getActivePageTable() *PageTable {
     return @ptrFromInt(higher_half.virtualFromPhysical(cpu.registers.Cr3.read()));
-}
-
-/// Set the active page table by writing to the control register number 3
-pub inline fn setActivePageTable(page_table: *PageTable) void {
-    cpu.registers.Cr3.write(getActivePageTable().physicalFromVirtual(@intFromPtr(page_table)).?);
 }
 
 pub fn init() void {

@@ -7,6 +7,9 @@ const scheduler = @import("scheduler.zig");
 const screen = @import("screen.zig");
 const stream = @import("stream.zig");
 const tmpfs = @import("fs/tmpfs.zig");
+const vfs = @import("fs/vfs.zig");
+
+const user_allocator = @import("memory.zig").user_allocator;
 
 pub fn write(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
     if (buffer_len == 0) {
@@ -34,6 +37,43 @@ pub fn read(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer
     const process = scheduler.maybe_process.?;
 
     context.rax = process.readFile(fd, offset, buffer);
+}
+
+pub fn readdir(context: *arch.cpu.process.Context, fd: usize, offset: usize, buffer_ptr: usize, buffer_len: usize) void {
+    if (buffer_len == 0) {
+        context.rax = 0;
+
+        return;
+    }
+
+    const process = scheduler.maybe_process.?;
+
+    const kernel_allocator = process.arena.allocator();
+
+    const dir_entry_buffer = @as([*]abi.DirEntry, @ptrFromInt(buffer_ptr))[0..buffer_len];
+
+    const node_buffer = kernel_allocator.alloc(*vfs.FileSystem.Node, buffer_len) catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+    };
+
+    defer kernel_allocator.free(node_buffer);
+
+    context.rax = process.readDir(fd, offset, node_buffer);
+
+    if (context.rax == 0) return;
+
+    for (node_buffer, dir_entry_buffer) |node, *dir_entry| {
+        dir_entry.* = .{
+            .name = user_allocator.dupeZ(u8, node.name) catch |err| switch (err) {
+                error.OutOfMemory => @panic("out of memory"),
+            },
+
+            .tag = switch (node.tag) {
+                .file => .file,
+                .directory => .directory,
+            },
+        };
+    }
 }
 
 pub fn open(context: *arch.cpu.process.Context, path_ptr: usize, path_len: usize) void {
@@ -170,23 +210,19 @@ pub fn mmap(context: *arch.cpu.process.Context, virtual_address_hint: usize, byt
 
     const kernel_allocator = process.arena.allocator();
 
-    const page_table = arch.paging.getActivePageTable();
-
     const bytes = kernel_allocator.alignedAlloc(u8, std.mem.page_size, bytes_len) catch {
         context.rax = 0;
 
         return;
     };
 
-    const physical_address = page_table.physicalFromVirtual(@intFromPtr(bytes.ptr)).?;
+    const physical_address = process.page_table.physicalFromVirtual(@intFromPtr(bytes.ptr)).?;
 
     context.rax = searchAndMap(virtual_address_hint, physical_address, bytes_len, protection);
 }
 
 fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len: usize, protection: usize) usize {
     const process = scheduler.maybe_process.?;
-
-    const page_table = arch.paging.getActivePageTable();
 
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
@@ -197,9 +233,9 @@ fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len:
     var virtual_address: usize = min_virtual_address;
 
     while (virtual_address < std.math.maxInt(usize)) : (virtual_address += std.mem.page_size) {
-        if (!page_table.mapped(virtual_address)) retry: {
+        if (!process.page_table.mapped(virtual_address)) retry: {
             for (1..page_count) |i| {
-                if (page_table.mapped(virtual_address + i * std.mem.page_size)) {
+                if (process.page_table.mapped(virtual_address + i * std.mem.page_size)) {
                     virtual_address += i * std.mem.page_size;
 
                     break :retry;
@@ -210,7 +246,7 @@ fn searchAndMap(virtual_address_hint: usize, physical_address: usize, bytes_len:
                 const offsetted_virtual_address = virtual_address + i * std.mem.page_size;
                 const offsetted_physical_address = physical_address + i * std.mem.page_size;
 
-                page_table.map(
+                process.page_table.map(
                     kernel_allocator,
                     offsetted_virtual_address,
                     offsetted_physical_address,
@@ -241,14 +277,12 @@ pub fn munmap(_: *arch.cpu.process.Context, bytes_ptr: usize, bytes_len: usize) 
 
     const kernel_allocator = process.arena.allocator();
 
-    const page_table = arch.paging.getActivePageTable();
-
     const page_count = std.math.divCeil(usize, bytes_len, std.mem.page_size) catch unreachable;
 
-    kernel_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
+    kernel_allocator.free(@as([*]u8, @ptrFromInt(higher_half.virtualFromPhysical(process.page_table.physicalFromVirtual(bytes_ptr).?)))[0..bytes_len]);
 
     for (0..page_count) |i| {
-        page_table.unmap(bytes_ptr + i * std.mem.page_size);
+        process.page_table.unmap(bytes_ptr + i * std.mem.page_size);
     }
 }
 

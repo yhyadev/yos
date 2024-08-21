@@ -1,6 +1,7 @@
 pub const Syscode = enum(usize) {
     write,
     read,
+    readdir,
     open,
     close,
     poll,
@@ -17,6 +18,16 @@ pub const Syscode = enum(usize) {
     munmap,
     mkdir,
     mkfile,
+};
+
+pub const DirEntry = extern struct {
+    name: [*:0]const u8,
+    tag: Tag,
+
+    pub const Tag = enum(u8) {
+        file,
+        directory,
+    };
 };
 
 pub const Color = packed struct(u32) {

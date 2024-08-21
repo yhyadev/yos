@@ -162,6 +162,10 @@ pub const fs = struct {
         return syscall4(.read, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
     }
 
+    pub fn readdir(fd: usize, offset: usize, buffer: []abi.DirEntry) usize {
+        return syscall4(.readdir, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
+    }
+
     pub fn mkdir(path: []const u8) isize {
         return @bitCast(syscall2(.mkdir, @intFromPtr(path.ptr), path.len));
     }

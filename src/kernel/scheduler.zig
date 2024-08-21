@@ -1,5 +1,3 @@
-//! Scheduler
-//!
 //! An implementation of a round robin scheduling algorithm and an elf loader
 
 const std = @import("std");
@@ -141,9 +139,27 @@ const Process = struct {
         return 0;
     }
 
+    /// Read from directory using its index in the open files list
+    pub fn readDir(self: *Process, fd: usize, offset: usize, buffer: []*vfs.FileSystem.Node) usize {
+        if (fd > self.files.items.len) return 0;
+
+        if (self.files.items[fd]) |file| {
+            if (file.tag != .directory) return 0;
+
+            file.readDir(offset, buffer);
+
+            return file.childCount() - offset;
+        }
+
+        return 0;
+    }
+
     /// Open a file and return its index in the open files list
     pub fn openFile(self: *Process, path: []const u8) !isize {
-        const resolved_path = try std.fs.path.resolve(backing_allocator, &.{ self.env.get("PWD").?, path });
+        const kernel_allocator = self.arena.allocator();
+
+        const resolved_path = try std.fs.path.resolve(kernel_allocator, &.{ self.env.get("PWD").?, path });
+        defer kernel_allocator.free(resolved_path);
 
         const file = try vfs.openAbsolute(resolved_path);
 
@@ -161,6 +177,8 @@ const Process = struct {
 
             return file.close();
         }
+
+        return error.NotFound;
     }
 
     /// Put into the environment using a pair instead of key to value structure
@@ -170,12 +188,30 @@ const Process = struct {
         const env_key = env_pair_iterator.next() orelse return error.BadEnvPair;
         const env_value = env_pair_iterator.next() orelse return error.BadEnvPair;
 
-        try self.env.put(user_allocator, env_key, env_value);
+        const kernel_allocator = self.arena.allocator();
+
+        try self.env.put(kernel_allocator, env_key, env_value);
+    }
+
+    fn putEnvDefaultPairs(self: *Process) std.mem.Allocator.Error!void {
+        const kernel_allocator = self.arena.allocator();
+
+        const home_path = try user_allocator.dupe(u8, "/home");
+        const bin_path = try user_allocator.dupe(u8, "/usr/bin");
+
+        try self.env.put(kernel_allocator, "HOME", home_path);
+        try self.env.put(kernel_allocator, "PWD", home_path);
+
+        try self.env.put(kernel_allocator, "PATH", bin_path);
     }
 
     /// Pass the control to underlying code that the process hold
-    pub fn run(self: Process) noreturn {
-        arch.paging.setActivePageTable(self.page_table);
+    pub fn run(self: *Process) noreturn {
+        self.page_table.setActivePageTable();
+
+        self.putEnvDefaultPairs() catch |err| switch (err) {
+            error.OutOfMemory => @panic("out of memory"),
+        };
 
         if (arch.target.isX86()) {
             asm volatile ("sysretq"
@@ -258,17 +294,6 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
         _ = elf_file.read(0, elf_content);
 
         try process.loadElf(elf_content);
-    }
-
-    {
-        const home_path = try user_allocator.dupe(u8, "/home");
-
-        try process.env.put(kernel_allocator, "HOME", home_path);
-        try process.env.put(kernel_allocator, "PWD", home_path);
-
-        const bin_path = try user_allocator.dupe(u8, "/usr/bin");
-
-        try process.env.put(kernel_allocator, "PATH", bin_path);
     }
 
     {
@@ -464,7 +489,7 @@ pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!vo
 
         context.* = waiting_process.context;
 
-        arch.paging.setActivePageTable(waiting_process.page_table);
+        waiting_process.page_table.setActivePageTable();
     }
 }
 
