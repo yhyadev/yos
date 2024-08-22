@@ -11,7 +11,7 @@ pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noretu
     arch.cpu.interrupts.disable();
 
     // The console should not in any way be the error, this must work
-    console.print("\npanic: {s}\n", .{message});
+    console.print("{s}\n", .{message});
 
     arch.cpu.process.hang();
 }

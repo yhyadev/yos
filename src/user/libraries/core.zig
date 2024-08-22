@@ -24,7 +24,7 @@ pub const console = struct {
     }
 
     pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-        print("\npanic: {s}\n", .{message});
+        print("{s}\n", .{message});
 
         process.exit(1);
     }
