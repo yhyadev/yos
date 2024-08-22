@@ -157,15 +157,25 @@ pub fn execve(context: *arch.cpu.process.Context, argv_ptr: usize, argv_len: usi
     };
 }
 
+var maybe_framebuffer_virtual_address: ?usize = null;
+
 pub fn getframebuffer(context: *arch.cpu.process.Context, width_ptr: usize, height_ptr: usize) void {
     @as(*usize, @ptrFromInt(width_ptr)).* = screen.framebuffer.width;
     @as(*usize, @ptrFromInt(height_ptr)).* = screen.framebuffer.height;
 
     const page_table = arch.paging.getActivePageTable();
 
-    const framebuffer_physical_address = page_table.physicalFromVirtual(@intFromPtr(screen.framebuffer.address)).?;
+    if (maybe_framebuffer_virtual_address) |framebuffer_virtual_address| {
+        context.rax = framebuffer_virtual_address;
+    } else {
+        const framebuffer_physical_address = page_table.physicalFromVirtual(@intFromPtr(screen.framebuffer.address)).?;
 
-    context.rax = searchAndMap(0, framebuffer_physical_address, screen.framebuffer.width * screen.framebuffer.height * 4, 0x2);
+        context.rax = searchAndMap(0, framebuffer_physical_address, screen.framebuffer.width * screen.framebuffer.height * 4, 0x2);
+
+        if (context.rax != 0) {
+            maybe_framebuffer_virtual_address = context.rax;
+        }
+    }
 }
 
 pub fn getargv(context: *arch.cpu.process.Context, len_ptr: usize) void {
