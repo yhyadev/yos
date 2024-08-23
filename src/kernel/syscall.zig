@@ -115,6 +115,62 @@ pub fn poll(context: *arch.cpu.process.Context, sid: usize) void {
     }
 }
 
+pub fn pipe(_: *arch.cpu.process.Context, pipefd_ptr: usize) void {
+    const pipefd = @as([*]usize, @ptrFromInt(pipefd_ptr))[0..2];
+
+    const process = scheduler.maybe_process.?;
+
+    const kernel_allocator = process.arena.allocator();
+
+    const PipeStream = stream.Stream(u8, 6 * 1024);
+
+    const outer_pipe_stream = kernel_allocator.create(PipeStream) catch @panic("out of memory");
+
+    const pipe_read_node = kernel_allocator.create(vfs.FileSystem.Node) catch @panic("out of memory");
+    pipe_read_node.* = .{
+        .name = "piper",
+        .tag = .file,
+        .ctx = outer_pipe_stream,
+        .vtable = &.{
+            .read = struct {
+                fn read(node: *vfs.FileSystem.Node, _: usize, buffer: []u8) usize {
+                    const pipe_stream: *PipeStream = @ptrCast(@alignCast(node.ctx));
+
+                    for (buffer, 0..) |*byte, i| {
+                        byte.* = pipe_stream.poll() orelse return i;
+                    }
+
+                    return buffer.len;
+                }
+            }.read,
+        },
+    };
+
+    pipefd[0] = process.addFile(pipe_read_node) catch @panic("out of memory");
+
+    const pipe_write_node = kernel_allocator.create(vfs.FileSystem.Node) catch @panic("out of memory");
+    pipe_write_node.* = .{
+        .name = "pipew",
+        .tag = .file,
+        .ctx = outer_pipe_stream,
+        .vtable = &.{
+            .write = struct {
+                fn write(node: *vfs.FileSystem.Node, _: usize, buffer: []const u8) usize {
+                    const pipe_stream: *PipeStream = @ptrCast(@alignCast(node.ctx));
+
+                    for (buffer) |byte| {
+                        pipe_stream.append(byte);
+                    }
+
+                    return buffer.len;
+                }
+            }.write,
+        },
+    };
+
+    pipefd[1] = process.addFile(pipe_write_node) catch @panic("out of memory");
+}
+
 pub fn exit(context: *arch.cpu.process.Context, _: usize) void {
     const process = scheduler.maybe_process.?;
 

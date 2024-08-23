@@ -179,7 +179,7 @@ const Process = struct {
             if (maybe_file.* == null) {
                 maybe_file.* = file;
 
-                return @intCast(i);
+                return i;
             }
         }
 

@@ -146,14 +146,6 @@ pub const process = struct {
 };
 
 pub const fs = struct {
-    pub fn open(path: []const u8) isize {
-        return @bitCast(syscall2(.open, @intFromPtr(path.ptr), path.len));
-    }
-
-    pub fn close(fd: usize) isize {
-        return @bitCast(syscall2(.close, fd));
-    }
-
     pub fn write(fd: usize, offset: usize, buffer: []const u8) usize {
         return syscall4(.write, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
     }
@@ -164,6 +156,19 @@ pub const fs = struct {
 
     pub fn readdir(fd: usize, offset: usize, buffer: []abi.DirEntry) usize {
         return syscall4(.readdir, fd, offset, @intFromPtr(buffer.ptr), buffer.len);
+    }
+
+    pub fn open(path: []const u8) isize {
+        return @bitCast(syscall2(.open, @intFromPtr(path.ptr), path.len));
+    }
+
+    pub fn close(fd: usize) isize {
+        return @bitCast(syscall2(.close, fd));
+    }
+
+    pub fn pipe(pipefd: []usize) void {
+        std.debug.assert(pipefd.len == 2);
+        _ = syscall1(.pipe, @intFromPtr(pipefd.ptr));
     }
 
     pub fn mkdir(path: []const u8) isize {
