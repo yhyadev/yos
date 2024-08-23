@@ -154,6 +154,40 @@ const Process = struct {
         return 0;
     }
 
+    /// Add a child into the children list, reuses a stopped child place if there is any
+    pub fn addChild(self: *Process, child: *Process) !usize {
+        const kernel_allocator = self.arena.allocator();
+
+        for (self.children.items, 0..) |*maybe_child, i| {
+            if (maybe_child.* == null) {
+                maybe_child.* = child;
+
+                return @intCast(i);
+            }
+        }
+
+        try self.children.append(kernel_allocator, child);
+
+        return self.children.items.len - 1;
+    }
+
+    /// Add a file into the open files list, reuses a closed file place if there is any
+    pub fn addFile(self: *Process, file: *vfs.FileSystem.Node) !usize {
+        const kernel_allocator = self.arena.allocator();
+
+        for (self.files.items, 0..) |*maybe_file, i| {
+            if (maybe_file.* == null) {
+                maybe_file.* = file;
+
+                return @intCast(i);
+            }
+        }
+
+        try self.files.append(kernel_allocator, file);
+
+        return self.files.items.len - 1;
+    }
+
     /// Open a file and return its index in the open files list
     pub fn openFile(self: *Process, path: []const u8) !isize {
         const kernel_allocator = self.arena.allocator();
@@ -161,11 +195,7 @@ const Process = struct {
         const resolved_path = try std.fs.path.resolve(kernel_allocator, &.{ self.env.get("PWD").?, path });
         defer kernel_allocator.free(resolved_path);
 
-        const file = try vfs.openAbsolute(resolved_path);
-
-        try self.files.append(backing_allocator, file);
-
-        return @intCast(self.files.items.len - 1);
+        return @intCast(try self.addFile(try vfs.openAbsolute(resolved_path)));
     }
 
     /// Close a file using its index in the open files list
@@ -256,7 +286,7 @@ const Process = struct {
     }
 };
 
-/// Allocate a new process and return its pointer, reuses a previously allocated memory if we have any
+/// Allocate a new process into the list and return its pointer, reuses a stopped process place if there is any
 fn allocProcess(is_newly_allocated: *bool) std.mem.Allocator.Error!*Process {
     if (stopped_processes.popOrNull()) |stopped_process| {
         return stopped_process;
@@ -371,7 +401,7 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
         @memcpy(child_stack_pages, parent_stack_pages);
     }
 
-    try parent_process.children.append(parent_process.arena.allocator(), child_process);
+    _ = try parent_process.addChild(child_process);
 
     try process_queue.writeItem(child_process);
 
