@@ -353,6 +353,8 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 
     child_process.env = try parent_process.env.clone(kernel_allocator);
 
+    child_process.files = try parent_process.files.clone(kernel_allocator);
+
     {
         try Process.mapUserStack(child_process.page_table, kernel_allocator);
 
@@ -367,16 +369,6 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
         ));
 
         @memcpy(child_stack_pages, parent_stack_pages);
-    }
-
-    {
-        const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
-            error.OutOfMemory => return error.OutOfMemory,
-
-            else => unreachable,
-        };
-
-        try child_process.files.appendNTimes(kernel_allocator, console_device, 3);
     }
 
     try parent_process.children.append(parent_process.arena.allocator(), child_process);
@@ -434,25 +426,6 @@ pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, e
             for (envp) |env_pair_ptr| {
                 try process.putEnvPair(try user_allocator.dupe(u8, std.mem.span(env_pair_ptr)));
             }
-        }
-
-        {
-            for (process.files.items) |maybe_open_file| {
-                if (maybe_open_file) |open_file| {
-                    open_file.close();
-                }
-            }
-
-            process.files.clearRetainingCapacity();
-
-            const console_device = vfs.openAbsolute("/dev/console") catch |err| switch (err) {
-                error.OutOfMemory => return err,
-                error.NotFound => @panic("console device is not found"),
-
-                else => unreachable,
-            };
-
-            try process.files.appendNTimes(kernel_allocator, console_device, 3);
         }
 
         try process.loadElf(elf_content);
