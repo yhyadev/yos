@@ -6,6 +6,8 @@ pub const Syscode = enum(usize) {
     close,
     poll,
     pipe,
+    dup,
+    dup2,
     exit,
     kill,
     getpid,

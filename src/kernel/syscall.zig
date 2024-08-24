@@ -115,8 +115,8 @@ pub fn poll(context: *arch.cpu.process.Context, sid: usize) void {
     }
 }
 
-pub fn pipe(_: *arch.cpu.process.Context, pipefd_ptr: usize) void {
-    const pipefd = @as([*]usize, @ptrFromInt(pipefd_ptr))[0..2];
+pub fn pipe(_: *arch.cpu.process.Context, pipe_fd_ptr: usize) void {
+    const pipe_fd = @as([*]usize, @ptrFromInt(pipe_fd_ptr))[0..2];
 
     const process = scheduler.maybe_process.?;
 
@@ -146,7 +146,7 @@ pub fn pipe(_: *arch.cpu.process.Context, pipefd_ptr: usize) void {
         },
     };
 
-    pipefd[0] = process.addFile(pipe_read_node) catch @panic("out of memory");
+    pipe_fd[0] = process.addFile(pipe_read_node) catch @panic("out of memory");
 
     const pipe_write_node = kernel_allocator.create(vfs.FileSystem.Node) catch @panic("out of memory");
     pipe_write_node.* = .{
@@ -168,7 +168,47 @@ pub fn pipe(_: *arch.cpu.process.Context, pipefd_ptr: usize) void {
         },
     };
 
-    pipefd[1] = process.addFile(pipe_write_node) catch @panic("out of memory");
+    pipe_fd[1] = process.addFile(pipe_write_node) catch @panic("out of memory");
+}
+
+pub fn dup(context: *arch.cpu.process.Context, old_fd: usize) void {
+    const process = scheduler.maybe_process.?;
+
+    const result: *isize = @ptrCast(&context.rax);
+
+    if (old_fd >= process.files.items.len or process.files.items[old_fd] == null) {
+        result.* = -1;
+
+        return;
+    }
+
+    const newfd = process.addFile(process.files.items[old_fd].?) catch @panic("out of memory");
+
+    result.* = @intCast(newfd);
+}
+
+pub fn dup2(context: *arch.cpu.process.Context, old_fd: usize, new_fd: usize) void {
+    const process = scheduler.maybe_process.?;
+
+    const result: *isize = @ptrCast(&context.rax);
+
+    if (old_fd >= process.files.items.len or process.files.items[old_fd] == null or new_fd >= process.files.items.len) {
+        result.* = -1;
+
+        return;
+    }
+
+    result.* = @intCast(new_fd);
+
+    if (process.files.items[new_fd]) |file| {
+        if (file == process.files.items[old_fd]) {
+            return;
+        }
+
+        file.close();
+    }
+
+    process.files.items[new_fd] = process.files.items[old_fd];
 }
 
 pub fn exit(context: *arch.cpu.process.Context, _: usize) void {

@@ -166,9 +166,18 @@ pub const fs = struct {
         return @bitCast(syscall2(.close, fd));
     }
 
-    pub fn pipe(pipefd: []usize) void {
-        std.debug.assert(pipefd.len == 2);
-        _ = syscall1(.pipe, @intFromPtr(pipefd.ptr));
+    pub fn pipe(pipe_fd: []usize) void {
+        std.debug.assert(pipe_fd.len == 2);
+
+        _ = syscall1(.pipe, @intFromPtr(pipe_fd.ptr));
+    }
+
+    pub fn dup(old_fd: usize) isize {
+        return @bitCast(syscall1(.dup, old_fd));
+    }
+
+    pub fn dup2(old_fd: usize, new_fd: usize) isize {
+        return @bitCast(syscall2(.dup, old_fd, new_fd));
     }
 
     pub fn mkdir(path: []const u8) isize {

@@ -119,7 +119,7 @@ const Process = struct {
 
     /// Write into file using its index in the open files list
     pub fn writeFile(self: *Process, fd: usize, offset: usize, buffer: []const u8) usize {
-        if (fd > self.files.items.len) return 0;
+        if (fd >= self.files.items.len) return 0;
 
         if (self.files.items[fd]) |file| {
             return file.write(offset, buffer);
@@ -130,7 +130,7 @@ const Process = struct {
 
     /// Read from file using its index in the open files list
     pub fn readFile(self: *Process, fd: usize, offset: usize, buffer: []u8) usize {
-        if (fd > self.files.items.len) return 0;
+        if (fd >= self.files.items.len) return 0;
 
         if (self.files.items[fd]) |file| {
             return file.read(offset, buffer);
@@ -141,7 +141,7 @@ const Process = struct {
 
     /// Read from directory using its index in the open files list
     pub fn readDir(self: *Process, fd: usize, offset: usize, buffer: []*vfs.FileSystem.Node) usize {
-        if (fd > self.files.items.len) return 0;
+        if (fd >= self.files.items.len) return 0;
 
         if (self.files.items[fd]) |file| {
             if (file.tag != .directory) return 0;
@@ -200,7 +200,7 @@ const Process = struct {
 
     /// Close a file using its index in the open files list
     pub fn closeFile(self: *Process, fd: usize) !void {
-        if (fd > self.files.items.len) return error.NotFound;
+        if (fd >= self.files.items.len) return error.NotFound;
 
         if (self.files.items[fd]) |file| {
             self.files.items[fd] = null;
