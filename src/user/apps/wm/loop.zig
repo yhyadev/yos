@@ -4,17 +4,10 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const core = @import("core");
 
 const display = @import("display.zig");
 
-pub fn start(allocator: std.mem.Allocator) noreturn {
-    core.framebuffer.init();
-
-    display.init(allocator) catch |err| switch (err) {
-        error.OutOfMemory => @panic("out of memory"),
-    };
-
+pub fn start() noreturn {
     while (true) {
         display.clearBackground(abi.Color.black);
 
