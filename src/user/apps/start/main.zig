@@ -2,7 +2,7 @@ const core = @import("core");
 
 pub const panic = core.console.panic;
 
-fn start_wm() noreturn {
+fn startWindowManager() noreturn {
     const result = core.process.execve(&.{"wm"}, &.{});
 
     switch (result) {
@@ -16,5 +16,5 @@ fn start_wm() noreturn {
 }
 
 export fn _start() noreturn {
-    start_wm();
+    startWindowManager();
 }
