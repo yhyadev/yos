@@ -125,6 +125,7 @@ pub fn pipe(_: *arch.cpu.process.Context, pipe_fd_ptr: usize) void {
     const PipeStream = stream.Stream(u8, 6 * 1024);
 
     const outer_pipe_stream = kernel_allocator.create(PipeStream) catch @panic("out of memory");
+    outer_pipe_stream.* = .{};
 
     const pipe_read_node = kernel_allocator.create(vfs.FileSystem.Node) catch @panic("out of memory");
     pipe_read_node.* = .{
