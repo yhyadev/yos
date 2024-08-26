@@ -37,7 +37,7 @@ pub const PageTable = extern struct {
     };
 
     /// Allocate a new page table with all entries are default
-    pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!*PageTable {
+    pub fn alloc(allocator: std.mem.Allocator) std.mem.Allocator.Error!*PageTable {
         const new_page_table = &((try allocator.allocWithOptions(PageTable, 1, std.mem.page_size, null))[0]);
         new_page_table.* = .{};
 
@@ -51,7 +51,7 @@ pub const PageTable = extern struct {
 
     /// Clone the page table, which expects that it is the same level you provided
     pub fn cloneLevel(self: *PageTable, allocator: std.mem.Allocator, level: usize) std.mem.Allocator.Error!*PageTable {
-        const new_page_table = try PageTable.init(allocator);
+        const new_page_table = try PageTable.alloc(allocator);
 
         new_page_table.mapKernel();
 
@@ -92,7 +92,7 @@ pub const PageTable = extern struct {
             const page = page_table.entries[page_index];
 
             if (!page.present) {
-                const new_page_table = try PageTable.init(allocator);
+                const new_page_table = try PageTable.alloc(allocator);
 
                 const page_table_physical_address = getActivePageTable().physicalFromVirtual(@intFromPtr(new_page_table)).?;
 

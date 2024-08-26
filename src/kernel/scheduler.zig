@@ -33,6 +33,17 @@ const Process = struct {
     env: std.StringHashMapUnmanaged([]const u8) = .{},
     argv: []const [*:0]const u8 = &.{},
 
+    /// Allocate a new process into the list and return its pointer, reuses a stopped process place if there is any
+    fn alloc(is_newly_allocated: *bool) std.mem.Allocator.Error!*Process {
+        if (stopped_processes.popOrNull()) |stopped_process| {
+            return stopped_process;
+        }
+
+        is_newly_allocated.* = true;
+
+        return processes.addOne(backing_allocator);
+    }
+
     /// Load the elf segments and user stack, this modifies the context respectively
     fn loadElf(self: *Process, elf_content: []const u8) !void {
         const kernel_allocator = self.arena.allocator();
@@ -223,6 +234,7 @@ const Process = struct {
         try self.env.put(kernel_allocator, env_key, env_value);
     }
 
+    /// Put the default environment pairs
     fn putEnvDefaultPairs(self: *Process) std.mem.Allocator.Error!void {
         const kernel_allocator = self.arena.allocator();
 
@@ -258,14 +270,6 @@ const Process = struct {
 
     /// Stop the process from running and free resources
     pub fn stop(self: *Process) void {
-        for (self.files.items) |maybe_file| {
-            if (maybe_file) |file| {
-                file.close();
-            }
-        }
-
-        self.arena.deinit();
-
         if (maybe_process == self) {
             maybe_process = null;
         }
@@ -283,25 +287,22 @@ const Process = struct {
         stopped_processes.append(backing_allocator, self) catch |err| switch (err) {
             error.OutOfMemory => @panic("out of memory"),
         };
+
+        for (self.files.items) |maybe_file| {
+            if (maybe_file) |file| {
+                file.close();
+            }
+        }
+
+        self.arena.deinit();
     }
 };
-
-/// Allocate a new process into the list and return its pointer, reuses a stopped process place if there is any
-fn allocProcess(is_newly_allocated: *bool) std.mem.Allocator.Error!*Process {
-    if (stopped_processes.popOrNull()) |stopped_process| {
-        return stopped_process;
-    }
-
-    is_newly_allocated.* = true;
-
-    return processes.addOne(backing_allocator);
-}
 
 /// Set the initial process, which is necessary before starting the scheduler if there is no processes before this
 pub fn setInitialProcess(elf_file_path: []const u8) !void {
     var process_newly_allocated = false;
 
-    const process = try allocProcess(&process_newly_allocated);
+    const process = try Process.alloc(&process_newly_allocated);
 
     process.* = .{
         .id = if (process_newly_allocated) processes.items.len else process.id,
@@ -312,7 +313,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
 
     const kernel_allocator = process.arena.allocator();
 
-    process.page_table = try arch.paging.PageTable.init(kernel_allocator);
+    process.page_table = try arch.paging.PageTable.alloc(kernel_allocator);
     process.page_table.mapKernel();
 
     {
@@ -339,7 +340,7 @@ pub fn setInitialProcess(elf_file_path: []const u8) !void {
     maybe_process = process;
 }
 
-/// Kill a specific process by removing it from the list and the queue, also it deallocates all memory it consumed
+/// Kill a specific process by removing it from the list and the queue
 pub fn kill(pid: usize) void {
     const process = &processes.items[pid - 1];
 
@@ -366,7 +367,7 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
 
     var child_process_newly_allocated = false;
 
-    const child_process = try allocProcess(&child_process_newly_allocated);
+    const child_process = try Process.alloc(&child_process_newly_allocated);
 
     child_process.* = .{
         .id = if (child_process_newly_allocated) processes.items.len else child_process.id,
@@ -496,7 +497,7 @@ pub fn reschedule(context: *arch.cpu.process.Context) std.mem.Allocator.Error!vo
     }
 }
 
-/// Called when the timer gives back control to the kernel
+/// Must be called when the timer gives back control to the kernel
 fn interrupt(context: *arch.cpu.process.Context) callconv(.C) void {
     defer arch.cpu.interrupts.end();
 
