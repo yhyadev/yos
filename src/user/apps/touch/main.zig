@@ -15,9 +15,9 @@ export fn _start() noreturn {
 
         if (std.mem.eql(u8, arg, "--help")) {
             core.console.print(
-                \\Usage: {s} <DIRECTORY..>
+                \\Usage: {s} <FILE..>
                 \\
-                \\Make DIRECTORY(ies), if they do not already exist.
+                \\Make FILE(s), if they do not already exist.
             , .{argv[0]});
 
             break;
@@ -27,7 +27,7 @@ export fn _start() noreturn {
     for (argv[1..]) |arg_ptr| {
         const arg = std.mem.span(arg_ptr);
 
-        switch (core.fs.mkdir(arg)) {
+        switch (core.fs.mkfile(arg)) {
             -1, -2, -3 => std.debug.panic("{s}: no such file or directory", .{arg}),
 
             else => {},
