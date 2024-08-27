@@ -14,5 +14,9 @@ export fn _start() noreturn {
         error.OutOfMemory => @panic("out of memory"),
     };
 
+    loop.init(allocator);
+
+    core.gui.server.start();
+
     loop.start();
 }

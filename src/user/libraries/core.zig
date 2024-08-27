@@ -12,6 +12,16 @@ pub const syscall5 = arch.cpu.syscall.syscall5;
 pub const syscall6 = arch.cpu.syscall.syscall6;
 
 pub const console = struct {
+    pub const stdin_fd = 0;
+    pub const stdout_fd = 1;
+    pub const stderr_fd = 2;
+
+    pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
+        _ = fs.write(stderr_fd, 0, message);
+
+        process.exit(1);
+    }
+
     pub const Writer = std.io.Writer(void, error{}, printImpl);
     pub const writer = Writer{ .context = {} };
 
@@ -20,13 +30,7 @@ pub const console = struct {
     }
 
     fn printImpl(_: void, bytes: []const u8) !usize {
-        return fs.write(1, 0, bytes);
-    }
-
-    pub fn panic(message: []const u8, _: ?*std.builtin.StackTrace, _: ?usize) noreturn {
-        print("{s}\n", .{message});
-
-        process.exit(1);
+        return fs.write(stdout_fd, 0, bytes);
     }
 };
 
@@ -163,7 +167,7 @@ pub const fs = struct {
     }
 
     pub fn close(fd: usize) isize {
-        return @bitCast(syscall2(.close, fd));
+        return @bitCast(syscall1(.close, fd));
     }
 
     pub fn pipe(pipe_fd: []usize) void {
@@ -186,5 +190,94 @@ pub const fs = struct {
 
     pub fn mkfile(path: []const u8) isize {
         return @bitCast(syscall2(.mkfile, @intFromPtr(path.ptr), path.len));
+    }
+};
+
+pub const gui = struct {
+    pub const server = struct {
+        const read_fd = 3;
+        const write_fd = 4;
+
+        pub fn start() void {
+            var pipe_fd: [2]usize = undefined;
+            fs.pipe(&pipe_fd);
+        }
+
+        pub const message = struct {
+            pub const Tag = enum(u8) {
+                init_window,
+                close_window,
+
+                pub fn read() ?Tag {
+                    var buffer: [1]u8 = undefined;
+
+                    if (fs.read(read_fd, 0, &buffer) != buffer.len) {
+                        return null;
+                    }
+
+                    return @enumFromInt(buffer[0]);
+                }
+            };
+
+            pub fn writeInitWindow(width: usize, height: usize) void {
+                const usize_byte_count = @sizeOf(usize);
+
+                var buffer: [1 + (usize_byte_count * 3)]u8 = undefined;
+
+                buffer[0] = @intFromEnum(Tag.init_window);
+                std.mem.writeInt(usize, buffer[1 .. 1 + usize_byte_count], process.getid(), .big);
+                std.mem.writeInt(usize, buffer[1 + usize_byte_count .. 1 + usize_byte_count * 2], width, .big);
+                std.mem.writeInt(usize, buffer[1 + usize_byte_count * 2 ..], height, .big);
+
+                _ = fs.write(write_fd, 0, &buffer);
+            }
+
+            pub fn writeCloseWindow() void {
+                const usize_byte_count = @sizeOf(usize);
+
+                var buffer: [1 + (usize_byte_count * 2)]u8 = undefined;
+
+                buffer[0] = @intFromEnum(Tag.close_window);
+                std.mem.writeInt(usize, buffer[1 .. 1 + usize_byte_count], process.getid(), .big);
+
+                _ = fs.write(write_fd, 0, &buffer);
+            }
+
+            pub fn readInitWindow() ?struct { usize, usize, usize } {
+                const usize_byte_count = @sizeOf(usize);
+
+                var buffer: [usize_byte_count * 3]u8 = undefined;
+
+                if (fs.read(read_fd, 0, &buffer) != buffer.len) {
+                    return null;
+                }
+
+                return .{
+                    std.mem.readInt(usize, buffer[0..usize_byte_count], .big),
+                    std.mem.readInt(usize, buffer[usize_byte_count .. usize_byte_count * 2], .big),
+                    std.mem.readInt(usize, buffer[usize_byte_count * 2 ..], .big),
+                };
+            }
+
+            pub fn readCloseWindow() ?usize {
+                const usize_byte_count = @sizeOf(usize);
+
+                var buffer: [usize_byte_count]u8 = undefined;
+
+                if (fs.read(read_fd, 0, &buffer) != buffer.len) {
+                    return null;
+                }
+
+                return std.mem.readInt(usize, &buffer, .big);
+            }
+        };
+    };
+
+    pub fn initWindow(width: usize, height: usize) void {
+        server.message.writeInitWindow(width, height);
+    }
+
+    pub fn closeWindow() void {
+        server.message.writeCloseWindow();
     }
 };

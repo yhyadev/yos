@@ -43,6 +43,19 @@ pub fn drawRectangle(x: usize, y: usize, width: usize, height: usize, color: abi
     }
 }
 
+/// Draw a rectangle with x and y being the top left corner, but each color is customizable
+pub fn drawCustomRectangle(x: usize, y: usize, width: usize, height: usize, colors: []const abi.Color) void {
+    const back_buffer = state.getBackBuffer();
+
+    for (y..y + height) |dy| {
+        for (x..x + width) |dx| {
+            if (dx > state.width or dy > state.height) continue;
+
+            back_buffer[dx + dy * state.width] = colors[dx + dy * width];
+        }
+    }
+}
+
 /// Synchronize buffers and put on screen all things that changed
 pub fn synchronize() void {
     for (state.getFrontBuffer(), state.getBackBuffer(), 0..) |*front_color, back_color, i| {

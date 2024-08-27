@@ -116,7 +116,7 @@ fn stage2() noreturn {
 
     if (core_id == 0) {
         // Load the initial process
-        scheduler.setInitialProcess("/usr/bin/start") catch |err| switch (err) {
+        scheduler.setInitialProcess("/usr/bin/wm") catch |err| switch (err) {
             error.OutOfMemory => @panic("out of memory"),
             error.NotFound => @panic("the initial process file is not found in initial ramdisk"),
             error.NotDirectory => @panic("the initial process path is incorrect, caused by a component that is not directory"),
