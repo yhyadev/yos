@@ -108,6 +108,16 @@ fn handleMessageEvents() std.mem.Allocator.Error!void {
             .close_window => {
                 const pid = core.gui.server.message.readCloseWindow() orelse return;
 
+                const window = &windows.get(pid).?;
+
+                for (windows_ordering.items, 0..) |other_window, i| {
+                    if (window == other_window) {
+                        _ = windows_ordering.orderedRemove(i);
+
+                        break;
+                    }
+                }
+
                 _ = windows.remove(pid);
             },
         }
