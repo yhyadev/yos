@@ -36,6 +36,8 @@ const Process = struct {
     /// Allocate a new process into the list and return its pointer, reuses a stopped process place if there is any
     fn alloc(is_newly_allocated: *bool) std.mem.Allocator.Error!*Process {
         if (stopped_processes.popOrNull()) |stopped_process| {
+            is_newly_allocated.* = false;
+
             return stopped_process;
         }
 
@@ -80,11 +82,11 @@ const Process = struct {
 
         const pages = try allocator.allocWithOptions(u8, page_count * std.mem.page_size, std.mem.page_size, null);
 
-        const pages_physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).?;
-
         @memset(pages, 0);
 
         @memcpy(pages[0..program_header.p_filesz], elf_content[program_header.p_offset .. program_header.p_offset + program_header.p_filesz]);
+
+        const pages_physical_address = page_table.physicalFromVirtual(@intFromPtr(pages.ptr)).?;
 
         for (0..page_count) |i| {
             const virtual_address = program_header.p_vaddr + i * std.mem.page_size;
@@ -374,6 +376,7 @@ pub fn fork(context: *arch.cpu.process.Context) !usize {
         .arena = std.heap.ArenaAllocator.init(backing_allocator),
         .context = context.*,
         .page_table = undefined,
+        .parent = parent_process,
     };
 
     child_process.context.rax = 0;
