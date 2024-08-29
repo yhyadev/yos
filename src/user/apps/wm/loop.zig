@@ -32,7 +32,9 @@ fn drawWindows() void {
 }
 
 fn handleEvents() void {
-    handleKeyEvents();
+    handleKeyEvents() catch |err| switch (err) {
+        error.OutOfMemory => @panic("out of memory"),
+    };
 
     handleMessageEvents() catch |err| switch (err) {
         error.OutOfMemory => @panic("out of memory"),
@@ -40,28 +42,26 @@ fn handleEvents() void {
 }
 
 const key_handler = struct {
-    var windows_key_pressed = false;
+    var keys_pressed: std.AutoHashMapUnmanaged(abi.KeyEvent.Code, void) = .{};
 
-    fn handle(key_event: abi.KeyEvent) void {
+    fn handle(key_event: abi.KeyEvent) std.mem.Allocator.Error!void {
         if (key_event.state == .pressed) {
-            pressKey(key_event);
+            try pressKey(key_event);
         } else if (key_event.state == .released) {
             releaseKey(key_event);
         }
     }
 
-    fn pressKey(key_event: abi.KeyEvent) void {
-        if (windows_key_pressed) handleWindowsKeyActions(key_event);
-
-        if (key_event.code == .left_windows or key_event.code == .right_windows) {
-            windows_key_pressed = true;
+    fn pressKey(key_event: abi.KeyEvent) std.mem.Allocator.Error!void {
+        if (keys_pressed.get(.left_windows) != null or keys_pressed.get(.right_windows) != null) {
+            handleWindowsKeyActions(key_event);
         }
+
+        try keys_pressed.put(backing_allocator, key_event.code, {});
     }
 
     fn releaseKey(key_event: abi.KeyEvent) void {
-        if (key_event.code == .left_windows or key_event.code == .right_windows) {
-            windows_key_pressed = false;
-        }
+        _ = keys_pressed.remove(key_event.code);
     }
 
     fn handleWindowsKeyActions(key_event: abi.KeyEvent) void {
@@ -71,9 +71,9 @@ const key_handler = struct {
     }
 };
 
-fn handleKeyEvents() void {
+fn handleKeyEvents() std.mem.Allocator.Error!void {
     while (core.keyboard.poll()) |key_event| {
-        key_handler.handle(key_event);
+        try key_handler.handle(key_event);
     }
 }
 
