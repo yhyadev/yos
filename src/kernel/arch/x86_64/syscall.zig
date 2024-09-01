@@ -111,14 +111,14 @@ fn syscallHandler(context: *cpu.process.Context) callconv(.C) void {
     const syscall_function_types = @typeInfo(syscall_functions);
 
     switch (context.rax) {
-        inline 0...syscall_function_types.Struct.decls.len - 1 => |code| {
-            const syscall_function = @field(syscall_functions, syscall_function_types.Struct.decls[code].name);
+        inline 0...syscall_function_types.@"struct".decls.len - 1 => |code| {
+            const syscall_function = @field(syscall_functions, syscall_function_types.@"struct".decls[code].name);
             const syscall_function_type = @typeInfo(@TypeOf(syscall_function));
 
-            comptime std.debug.assert(syscall_function_type == .Fn);
-            comptime std.debug.assert(syscall_function_type.Fn.params.len <= 6);
+            comptime std.debug.assert(syscall_function_type == .@"fn");
+            comptime std.debug.assert(syscall_function_type.@"fn".params.len <= 6);
 
-            switch (syscall_function_type.Fn.params.len - 1) {
+            switch (syscall_function_type.@"fn".params.len - 1) {
                 0 => syscall_function(context),
                 1 => syscall_function(context, context.rdi),
                 2 => syscall_function(context, context.rdi, context.rsi),
