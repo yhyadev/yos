@@ -13,7 +13,7 @@ var directories: std.ArrayListUnmanaged(Directory) = .{};
 
 const Directory = struct {
     node: vfs.FileSystem.Node,
-    children: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .{},
+    children: std.ArrayListUnmanaged(vfs.FileSystem.Node) = .empty,
 
     const vtable: vfs.FileSystem.Node.VTable = .{
         .readDir = struct {

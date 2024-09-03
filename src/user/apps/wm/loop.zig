@@ -10,8 +10,8 @@ const display = @import("display.zig");
 
 var backing_allocator: std.mem.Allocator = undefined;
 
-var windows: std.AutoHashMapUnmanaged(usize, Window) = .{};
-var windows_ordering: std.ArrayListUnmanaged(*Window) = .{};
+var windows: std.AutoHashMapUnmanaged(usize, Window) = .empty;
+var windows_ordering: std.ArrayListUnmanaged(*Window) = .empty;
 
 const Window = struct {
     buffer: []abi.Color = undefined,
@@ -42,7 +42,7 @@ fn handleEvents() void {
 }
 
 const key_handler = struct {
-    var keys_pressed: std.AutoHashMapUnmanaged(abi.KeyEvent.Code, void) = .{};
+    var keys_pressed: std.AutoHashMapUnmanaged(abi.KeyEvent.Code, void) = .empty;
 
     fn handle(key_event: abi.KeyEvent) std.mem.Allocator.Error!void {
         if (key_event.state == .pressed) {
@@ -86,7 +86,7 @@ fn handleMessageEvents() std.mem.Allocator.Error!void {
                 const buffer = try backing_allocator.alloc(abi.Color, width * height);
 
                 for (buffer) |*color| {
-                    color.* = abi.Color.black;
+                    color.* = .black;
                 }
 
                 const window_entry = try windows.getOrPutValue(
@@ -126,7 +126,7 @@ fn handleMessageEvents() std.mem.Allocator.Error!void {
 
 pub fn start() noreturn {
     while (true) {
-        display.clearBackground(abi.Color.black);
+        display.clearBackground(.black);
 
         handleEvents();
 

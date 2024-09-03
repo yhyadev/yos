@@ -34,8 +34,8 @@ const Font = struct {
 pub var state: State = .{};
 
 pub const State = struct {
-    background: abi.Color = abi.Color.black,
-    foreground: abi.Color = abi.Color.white,
+    background: abi.Color = .black,
+    foreground: abi.Color = .white,
     width: usize = 0,
     height: usize = 0,
     x: usize = 0,
@@ -43,7 +43,7 @@ pub const State = struct {
 };
 
 pub const Writer = std.io.Writer(void, error{}, printImpl);
-pub const writer = Writer{ .context = {} };
+pub const writer: Writer = .{ .context = {} };
 
 pub fn clear() void {
     mutex.lock();

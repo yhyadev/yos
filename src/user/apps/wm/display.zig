@@ -74,6 +74,6 @@ pub fn init(allocator: std.mem.Allocator) std.mem.Allocator.Error!void {
     state.buffer = try allocator.alloc(abi.Color, state.width * state.height * 2);
 
     for (state.buffer) |*color| {
-        color.* = abi.Color.black;
+        color.* = .black;
     }
 }

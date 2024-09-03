@@ -23,7 +23,7 @@ pub const console = struct {
     }
 
     pub const Writer = std.io.Writer(void, error{}, printImpl);
-    pub const writer = Writer{ .context = {} };
+    pub const writer: Writer = .{ .context = {} };
 
     pub fn print(comptime format: []const u8, arguments: anytype) void {
         std.fmt.format(writer, format, arguments) catch unreachable;

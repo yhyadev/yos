@@ -11,8 +11,8 @@ const user_allocator = @import("memory.zig").user_allocator;
 var backing_allocator: std.mem.Allocator = undefined;
 
 pub var maybe_process: ?*Process = null;
-var processes: std.ArrayListUnmanaged(Process) = .{};
-var stopped_processes: std.ArrayListUnmanaged(*Process) = .{};
+var processes: std.ArrayListUnmanaged(Process) = .empty;
+var stopped_processes: std.ArrayListUnmanaged(*Process) = .empty;
 var process_queue: std.fifo.LinearFifo(*Process, .Dynamic) = undefined;
 
 const reschedule_ticks = 0x19FBD0;
@@ -28,9 +28,9 @@ const Process = struct {
     context: arch.cpu.process.Context,
     page_table: *arch.paging.PageTable,
     parent: ?*Process = null,
-    children: std.ArrayListUnmanaged(?*Process) = .{},
-    files: std.ArrayListUnmanaged(?*vfs.FileSystem.Node) = .{},
-    env: std.StringHashMapUnmanaged([]const u8) = .{},
+    children: std.ArrayListUnmanaged(?*Process) = .empty,
+    files: std.ArrayListUnmanaged(?*vfs.FileSystem.Node) = .empty,
+    env: std.StringHashMapUnmanaged([]const u8) = .empty,
     argv: []const [*:0]const u8 = &.{},
 
     /// Allocate a new process into the list and return its pointer, reuses a stopped process place if there is any

@@ -6,7 +6,7 @@ const abi = @import("abi");
 
 const SpinLock = @import("locks/SpinLock.zig");
 
-pub var key_events = Stream(abi.KeyEvent, 256){};
+pub var key_events: Stream(abi.KeyEvent, 256) = .{};
 
 pub fn Stream(comptime V: type, comptime capacity: usize) type {
     return struct {
