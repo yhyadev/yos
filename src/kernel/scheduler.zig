@@ -241,12 +241,12 @@ const Process = struct {
         const kernel_allocator = self.arena.allocator();
 
         const home_path = try user_allocator.dupe(u8, "/home");
-        const bin_path = try user_allocator.dupe(u8, "/usr/bin");
+        const bin_paths = try user_allocator.dupe(u8, "/usr/bin");
 
         try self.env.put(kernel_allocator, "HOME", home_path);
         try self.env.put(kernel_allocator, "PWD", home_path);
 
-        try self.env.put(kernel_allocator, "PATH", bin_path);
+        try self.env.put(kernel_allocator, "PATH", bin_paths);
     }
 
     /// Pass the control to underlying code that the process hold
@@ -422,13 +422,14 @@ pub fn execve(context: *arch.cpu.process.Context, argv: []const [*:0]const u8, e
 
     if (argv.len < 1) return error.NotFound;
 
+    const bin_paths = process.env.get("PATH").?;
+
+    var bin_path_iterator = std.mem.tokenizeScalar(u8, bin_paths, ':');
+
     const file_path = std.mem.span(argv[0]);
 
-    var bin_path_iterator = std.mem.splitSequence(u8, process.env.get("PATH").?, ":");
-
     if (std.fs.path.isAbsolute(file_path)) {
-        // A hacky way to only iterate on the root directory
-        bin_path_iterator = std.mem.splitSequence(u8, "/", ".");
+        bin_path_iterator = std.mem.tokenizeScalar(u8, "/", ':');
     }
 
     while (bin_path_iterator.next()) |bin_path| {
